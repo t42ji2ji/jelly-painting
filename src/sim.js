@@ -14,7 +14,6 @@ export const SIM = {
   maxDisplacement: 0.075,
   waveFrequency: 2.2,
   waveDamping: 1.2,
-  fruitLag: 0.3,
   tiltFrequency: 3,
   tiltDamping: 0.35,
   tiltMax: (3 * Math.PI) / 180,
@@ -30,7 +29,6 @@ export function createSim(p = SIM) {
     target: { x: 0, z: 0 },
     cup: { x: 0, z: 0, vx: 0, vz: 0, ax: 0, az: 0 },
     slosh: { x: 0, z: 0, vx: 0, vz: 0 }, // lateral shear of the jelly top
-    lag: { x: 0, z: 0 }, // fruits trail the jelly
     wave: { y: 0, v: 0 }, // radial surface mode
     tilt: { x: 0, z: 0, vx: 0, vz: 0 }, // cup lean, radians
     shakeStart: -1,
@@ -81,10 +79,6 @@ export function createSim(p = SIM) {
       j.z *= k;
     }
 
-    const a = Math.min(1, dt / p.fruitLag);
-    s.lag.x += (j.x - s.lag.x) * a;
-    s.lag.z += (j.z - s.lag.z) * a;
-
     // The surface ripples when the jelly swings fast.
     const ww = TAU * p.waveFrequency;
     const drive = Math.hypot(j.vx, j.vz) * 14;
@@ -120,7 +114,6 @@ export function createSim(p = SIM) {
       Object.assign(s.target, { x: 0, z: 0 });
       Object.assign(s.cup, { x: 0, z: 0, vx: 0, vz: 0, ax: 0, az: 0 });
       Object.assign(s.slosh, { x: 0, z: 0, vx: 0, vz: 0 });
-      Object.assign(s.lag, { x: 0, z: 0 });
       Object.assign(s.wave, { y: 0, v: 0 });
       Object.assign(s.tilt, { x: 0, z: 0, vx: 0, vz: 0 });
       s.shakeStart = -1;

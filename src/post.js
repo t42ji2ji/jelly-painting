@@ -5,7 +5,7 @@
 
 import * as THREE from 'three/webgpu';
 import {
-  pass, rtt, Fn, vec2, vec3, vec4, float, uniform, screenUV, screenSize, screenCoordinate,
+  pass, rtt, Fn, If, vec2, vec3, vec4, float, uniform, screenUV, screenSize, screenCoordinate,
   mix, smoothstep, fract, dot, sqrt, max, min, abs, length, mx_noise_float, mx_fractal_noise_float, select, renderOutput, time, sin,
 } from 'three/tsl';
 
@@ -52,11 +52,20 @@ export function createPost(renderer, scene, camera) {
       const s = texel.mul(10);
       let acc = vec4(0);
       for (let i = -2; i <= 2; i++) for (let j = -2; j <= 2; j++) acc = acc.add(tensor.sample(screenUV.add(vec2(i, j).mul(s))));
-      return acc.div(25);
+      // w: the slow wander angle for flat areas, computed here at quarter resolution instead of per stroke step.
+      return vec4(acc.xyz.div(25), mx_noise_float(vec3(screenUV.mul(3), 0)).mul(0.5));
     })(),
     null,
     null,
     { resolutionScale: 0.25 },
+  );
+
+  // Bristle ribs, a fixed screen-space noise: rendered once (and again on resize), then just looked up.
+  const bristles = rtt(
+    Fn(() => vec4(mx_noise_float(vec3(screenUV.mul(screenSize).div(postU.bristleScale), 7)), 0, 0, 1))(),
+    null,
+    null,
+    { autoUpdate: false },
   );
 
   // Direction along the edge at uv; flat areas fall back to a gently wandering horizontal.
@@ -67,7 +76,7 @@ export function createPost(renderer, scene, camera) {
     const l1 = E.add(G).add(disc).mul(0.5);
     const tang = vec2(E.sub(l1), F);
     const tl = length(tang);
-    const wander = mx_noise_float(vec3(p.mul(3), 0)).mul(0.5);
+    const wander = t.w;
     const fallback = vec2(wander.cos(), wander.sin());
     const k = smoothstep(0.0005, 0.01, disc).mul(smoothstep(0.0, 0.0001, tl));
     return mix(fallback, tang.div(max(tl, 1e-6)), k).normalize();
@@ -79,41 +88,7 @@ export function createPost(renderer, scene, camera) {
     const n2 = ign(fc.add(vec2(17, 59)));
     const n3 = ign(fc.add(vec2(43, 23)));
 
-    // Fixed scatter: every pixel starts its stroke a little off, dissolving edges into speckle.
-    const start = screenUV.add(vec2(n1, n2).sub(0.5).mul(postU.speckle).mul(texel)).toVar();
-    // Stroke length varies per patch so the canvas doesn't read as one uniform blur.
-    const len = postU.strokeLength.mul(mx_noise_float(vec3(screenUV.mul(screenSize).div(70), 3)).mul(0.5).add(0.85));
-    const stepUv = texel.mul(len.div(STEPS));
-
-    const acc = vec3(0).toVar();
-    const wsum = float(0).toVar();
-    const rib = float(0).toVar();
-    const dir0 = flowAt(start).toVar();
-
-    for (const sign of [1, -1]) {
-      const p = start.toVar();
-      const d = dir0.mul(sign).toVar();
-      for (let i = 0; i < STEPS; i++) {
-        const w = 1 - i / STEPS;
-        acc.addAssign(color.sample(p).rgb.mul(w));
-        rib.addAssign(mx_noise_float(vec3(p.mul(screenSize).div(postU.bristleScale), 7)).mul(w));
-        wsum.addAssign(w);
-        const nd = flowAt(p);
-        d.assign(select(dot(nd, d).lessThan(0), nd.negate(), nd));
-        p.addAssign(d.mul(stepUv));
-      }
-    }
-
-    const smeared = acc.div(wsum);
-    const ribs = rib.div(wsum).mul(postU.ribContrast).mul(2).add(1);
-    const base = color.sample(screenUV).rgb;
-    // Tone map here so grain and paper live in display space.
-    let col = renderOutput(vec4(mix(base, smeared.mul(ribs), postU.strength), 1)).rgb;
-
-    // Fixed dither: tied to the pixel, not to time, so it reads as paper tooth. A little of it per channel.
-    col = col.add(n3.sub(0.5).mul(postU.grain)).add(vec3(n1, n2, n3).sub(0.5).mul(postU.grain.mul(0.45)));
-
-    // 3. Deckled frame.
+    // The painting's outline, first: the strokes are skipped outside it.
     const aspect = screenSize.x.div(screenSize.y);
     const q = screenUV.sub(0.5).mul(vec2(aspect, 1));
     const half = vec2(min(aspect, 1).mul(postU.frameSize).mul(0.5));
@@ -123,6 +98,45 @@ export function createPost(renderer, scene, camera) {
     // A gentle hand-cut wobble, then the edge dissolves into grain over a few pixels instead of a hard line.
     const deckle = mx_fractal_noise_float(vec3(q.mul(5), 11), 2).mul(half.x.mul(0.012));
     const d = sd.add(deckle);
+
+    const base = color.sample(screenUV).rgb;
+    // 2. Strokes only inside the painting: outside the frame it's bare paper, so skip the smear there.
+    const smeared = base.toVar();
+    If(d.lessThan(float(1).div(screenSize.y).mul(16)), () => {
+      // Fixed scatter: every pixel starts its stroke a little off, dissolving edges into speckle.
+      const start = screenUV.add(vec2(n1, n2).sub(0.5).mul(postU.speckle).mul(texel)).toVar();
+      // Stroke length varies per patch so the canvas doesn't read as one uniform blur.
+      const len = postU.strokeLength.mul(mx_noise_float(vec3(screenUV.mul(screenSize).div(70), 3)).mul(0.5).add(0.85));
+      const stepUv = texel.mul(len.div(STEPS));
+
+      const acc = vec3(0).toVar();
+      const wsum = float(0).toVar();
+      const rib = float(0).toVar();
+      const dir0 = flowAt(start).toVar();
+
+      for (const sign of [1, -1]) {
+        const p = start.toVar();
+        const d = dir0.mul(sign).toVar();
+        for (let i = 0; i < STEPS; i++) {
+          const w = 1 - i / STEPS;
+          acc.addAssign(color.sample(p).rgb.mul(w));
+          rib.addAssign(bristles.sample(p).x.mul(w));
+          wsum.addAssign(w);
+          const nd = flowAt(p);
+          d.assign(select(dot(nd, d).lessThan(0), nd.negate(), nd));
+          p.addAssign(d.mul(stepUv));
+        }
+      }
+
+      smeared.assign(acc.div(wsum).mul(rib.div(wsum).mul(postU.ribContrast).mul(2).add(1)));
+    });
+    // Tone map here so grain and paper live in display space.
+    let col = renderOutput(vec4(mix(base, smeared, postU.strength), 1)).rgb;
+
+    // Fixed dither: tied to the pixel, not to time, so it reads as paper tooth. A little of it per channel.
+    col = col.add(n3.sub(0.5).mul(postU.grain)).add(vec3(n1, n2, n3).sub(0.5).mul(postU.grain.mul(0.45)));
+
+    // 3. Deckled frame.
     const px = float(1).div(screenSize.y);
     const edgeW = px.mul(5);
     // White-noise hash here: the interleaved-gradient pattern shows up as a regular halftone along the edge.
@@ -165,14 +179,18 @@ export function createPost(renderer, scene, camera) {
     const paper = vec3(postU.paper).add(n3.sub(0.5).mul(0.02));
 
     // Reveal: horizontal bands of paint sweeping across, each band with its own start and ragged bristle tip.
-    const sp = screenUV.mul(screenSize).div(screenSize.y);
-    const band = sp.y.mul(14).add(mx_noise_float(vec3(sp.mul(vec2(2, 0.5)), 21)).mul(0.6)).floor();
-    const bandRand = ign(vec2(band, 3).mul(7.31));
-    const dirFlip = bandRand.greaterThan(0.5);
-    const along = select(dirFlip, sp.x.div(aspect), float(1).sub(sp.x.div(aspect)));
-    const tip = mx_noise_float(vec3(sp.x.mul(3), sp.y.mul(90), 23)).mul(0.06);
-    const front = postU.reveal.mul(1.9).sub(bandRand.mul(0.8));
-    const alpha = smoothstep(front, front.sub(0.04), along.add(tip));
+    // Once the sweep is done (reveal = 1) every band is fully painted, so this is skipped.
+    const alpha = float(1).toVar();
+    If(postU.reveal.lessThan(1), () => {
+      const sp = screenUV.mul(screenSize).div(screenSize.y);
+      const band = sp.y.mul(14).add(mx_noise_float(vec3(sp.mul(vec2(2, 0.5)), 21)).mul(0.6)).floor();
+      const bandRand = ign(vec2(band, 3).mul(7.31));
+      const dirFlip = bandRand.greaterThan(0.5);
+      const along = select(dirFlip, sp.x.div(aspect), float(1).sub(sp.x.div(aspect)));
+      const tip = mx_noise_float(vec3(sp.x.mul(3), sp.y.mul(90), 23)).mul(0.06);
+      const front = postU.reveal.mul(1.9).sub(bandRand.mul(0.8));
+      alpha.assign(smoothstep(front, front.sub(0.04), along.add(tip)));
+    });
     return vec4(mix(paper, col, mask).mul(alpha), alpha);
   });
 

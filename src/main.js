@@ -4,7 +4,7 @@
 
 import { createStage } from './stage.js';
 import { THEMES, PALETTES, backdropAt } from './themes.js';
-import { wobbleU, buildCup, updateFruits } from './scene.js';
+import { buildCup, updateJelly } from './scene.js';
 import { createModelMode } from './model.js';
 import { crayonCanvas, plusShape } from './crayon.js';
 import { PRESETS } from './presets.js';
@@ -41,9 +41,7 @@ const cupMode = {
     stage.frame(cup.dims.H, cup.dims.Rt * 2, cup.dims.H * 0.45, theme.cameraAzimuth);
   },
   update(dt, s) {
-    wobbleU.slosh.value.set(s.slosh.x, s.slosh.z);
-    wobbleU.wave.value = s.wave.y;
-    updateFruits(cup, s);
+    updateJelly(cup, dt, s);
   },
 };
 const modelMode = createModelMode(stage);

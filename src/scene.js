@@ -3,11 +3,12 @@
 import * as THREE from 'three/webgpu';
 import {
   Fn, uniform, vec2, vec3, float, mix, smoothstep, clamp, cos, max, positionLocal, positionWorld, normalView,
-  positionViewDirection, normalMap, texture, mx_fractal_noise_float, mx_noise_float, uv, length, dot, screenUV, screenSize, min,
+  positionViewDirection, normalMap, texture, texture3D, mx_fractal_noise_float, mx_noise_float, uv, length, dot, screenUV, screenSize, min,
 } from 'three/tsl';
 import { paintNormalMap, rng } from './paint.js';
 import { FRUIT_COLORS } from './themes.js';
 import { postU } from './post.js';
+import { createJelly } from './jelly.js';
 
 const EXPOSURE = 0.88;
 
@@ -21,35 +22,39 @@ export function cupDims({ H, Rb, Rt, flange }, fill, creamHeight) {
   return c;
 }
 
-// Wobble uniforms, written from the simulation every frame.
-export const wobbleU = {
-  slosh: uniform(new THREE.Vector2()),
-  wave: uniform(0),
-};
+// The jelly's displacement field (jelly.js) as a 3D texture, read in the vertex shader of the jelly and cream.
+function jellyField(body) {
+  const [nx, ny, nz] = body.grid.n;
+  const tex = new THREE.Data3DTexture(new Uint16Array(nx * ny * nz * 4), nx, ny, nz);
+  tex.format = THREE.RGBAFormat;
+  tex.type = THREE.HalfFloatType;
+  tex.minFilter = tex.magFilter = THREE.LinearFilter;
+  tex.unpackAlignment = 1;
+  tex.upload = () => {
+    const u = body.field, d = tex.image.data;
+    for (let i = 0, n = nx * ny * nz; i < n; i++) {
+      d[i * 4] = THREE.DataUtils.toHalfFloat(u[i * 3]);
+      d[i * 4 + 1] = THREE.DataUtils.toHalfFloat(u[i * 3 + 1]);
+      d[i * 4 + 2] = THREE.DataUtils.toHalfFloat(u[i * 3 + 2]);
+    }
+    tex.needsUpdate = true;
+  };
+  tex.upload();
+  return tex;
+}
 
-// Jelly deformation: the top shears and tilts, the wall stays glued to the glass.
-// Mirrored on the CPU in wobbleAt() for the fruits.
-const wobbleNode = (c, yLo, yHi, gain) =>
+// Jelly deformation: displace each vertex by the field; sideways motion fades out at the glass so it never pokes through.
+const warpNode = (c, body, tex, gain) =>
   Fn(() => {
     const p = positionLocal;
-    const h = clamp(p.y.sub(yLo).div(yHi - yLo), 0, 1);
+    const { n, min: lo, size } = body.grid;
+    const uvw = p.sub(vec3(...lo)).div(vec3(...size)).mul(vec3(...n.map((k) => (k - 1) / k))).add(vec3(...n.map((k) => 0.5 / k)));
+    const u = texture3D(tex, uvw).xyz.mul(gain);
     const rWall = float(c.Rb - c.T).add(p.y.mul((c.Rt - c.Rb) / c.H));
     const rad = clamp(length(p.xz).div(rWall), 0, 1);
-    const s = wobbleU.slosh;
-    const lat = s.mul(h.mul(h)).mul(float(1).sub(rad.mul(rad).mul(0.7))).mul(gain);
-    const lift = dot(p.xz, s).mul(1.3 / c.Rt).mul(h.pow(3))
-      .add(wobbleU.wave.mul(cos(rad.mul(Math.PI))).mul(h.pow(4)))
-      .mul(gain);
-    return vec3(p.x.add(lat.x), p.y.add(lift), p.z.add(lat.y));
+    const side = float(1).sub(rad.pow(4));
+    return vec3(p.x.add(u.x.mul(side)), p.y.add(u.y), p.z.add(u.z.mul(side)));
   })();
-
-function wobbleAt(c, x, y, z, sx, sz, wave) {
-  const h = Math.min(1, Math.max(0, (y - c.yC) / (c.yJ - c.yC)));
-  const rad = Math.min(1, Math.hypot(x, z) / c.rIn(y));
-  const k = h * h * (1 - 0.7 * rad * rad);
-  const lift = ((x * sx + z * sz) * 1.3) / c.Rt * h ** 3 + wave * Math.cos(rad * Math.PI) * h ** 4;
-  return [sx * k, lift, sz * k];
-}
 
 const V = (x, y) => new THREE.Vector2(x, y);
 
@@ -317,6 +322,8 @@ function placeFruits(c, counts, seed, mats) {
 export function buildCup(theme) {
   const c = cupDims(theme.cup, theme.jelly.fill, theme.cream.height);
   const group = new THREE.Group();
+  const body = createJelly(c);
+  const field = jellyField(body);
 
   const glassNormals = painted('glass', { strokes: 160, angle: Math.PI / 2, jitter: 0.25, width: [6, 20], length: [80, 260], strength: 4, seed: 3 });
 
@@ -336,7 +343,7 @@ export function buildCup(theme) {
     sheen: 0.21,
     sheenColor: '#ffffff',
   });
-  jellyMat.positionNode = wobbleNode(c, c.yC, c.yJ, 1);
+  jellyMat.positionNode = warpNode(c, body, field, 1);
   if (theme.jelly.clearBottom) {
     // Milky above, clearer where the pearls have settled, so they show through the wall.
     const milky = smoothstep(c.yC + 0.12, c.yC + 0.3, positionLocal.y);
@@ -366,26 +373,27 @@ export function buildCup(theme) {
   const grain = mx_fractal_noise_float(positionLocal.mul(14 * 1.35), 3).mul(0.39);
   creamMat.colorNode = mix(col(theme.cream.shade), col(theme.cream.color), smoothstep(c.BASE, c.yC, positionLocal.y).add(grain.mul(0.4)).clamp(0, 1));
   creamMat.emissiveNode = col(theme.cream.glow).mul(fresnel(1.2).mul(0.64 * 0.4));
-  creamMat.positionNode = wobbleNode(c, c.BASE, c.yC, 0.25);
+  creamMat.positionNode = warpNode(c, body, field, 0.6);
   group.add(new THREE.Mesh(creamGeo, creamMat));
 
   const mats = {};
   const fruits = placeFruits(c, theme.fruits, theme.label.length * 7, mats).map((f) => {
     f.mesh.position.set(f.x, f.y, f.z);
-    f.mesh.userData.home = { x: f.x, y: f.y, z: f.z, rot: f.mesh.rotation.clone() };
+    f.mesh.userData.home = { x: f.x, y: f.y, z: f.z, q: f.mesh.quaternion.clone() };
     group.add(f.mesh);
     return f.mesh;
   });
 
   if (theme.straw) {
-    // A fat bubble-tea straw, leaning against the rim; it rides with the jelly's lag like the fruit.
+    // A fat bubble-tea straw, leaning against the rim; it follows the jelly where it crosses the surface.
     const len = c.H * 1.3;
     const straw = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.042, len, 24, 1, true), new THREE.MeshPhysicalNodeMaterial({ color: theme.straw, roughness: 0.3, clearcoat: 0.6, side: THREE.DoubleSide }));
     straw.geometry.translate(0, len / 2, 0);
     straw.position.set(-c.Rb * 0.35, c.BASE + 0.02, c.Rb * 0.1);
     straw.rotation.z = -0.24;
     straw.rotation.x = 0.06;
-    straw.userData.home = { x: straw.position.x, y: straw.position.y, z: straw.position.z, rot: straw.rotation.clone() };
+    straw.userData.home = { x: straw.position.x, y: straw.position.y, z: straw.position.z, q: straw.quaternion.clone() };
+    straw.userData.reach = c.yJ - straw.position.y;
     group.add(straw);
     fruits.push(straw);
   }
@@ -395,15 +403,34 @@ export function buildCup(theme) {
   hit.position.y = (c.H + 0.05) / 2;
   group.add(hit);
 
-  return { group, fruits, hit, dims: c };
+  return { group, fruits, hit, dims: c, body, field };
 }
 
-export function updateFruits(cup, s) {
+const _u = [0, 0, 0], _w = [0, 0, 0], _axis = new THREE.Vector3(), _q = new THREE.Quaternion();
+
+// Step the jelly with the cup's motion, upload its field, and carry each piece of fruit along: it moves with the
+// jelly at its centre and turns with the jelly's local rotation there, so every piece wobbles on its own.
+export function updateJelly(cup, dt, s) {
+  cup.body.step(dt, s.cup);
+  cup.field.upload();
   for (const f of cup.fruits) {
     const h = f.userData.home;
-    const [dx, dy, dz] = wobbleAt(cup.dims, h.x, h.y, h.z, s.lag.x, s.lag.z, s.wave.y);
-    f.position.set(h.x + dx, h.y + dy, h.z + dz);
-    f.rotation.set(h.rot.x + s.lag.z * 2.5, h.rot.y, h.rot.z - s.lag.x * 2.5);
+    const reach = f.userData.reach;
+    if (reach) {
+      // The straw: its foot stays put, the jelly at the surface tips it over.
+      cup.body.sample(h.x, h.y + reach, h.z, _u);
+      _w[0] = _u[2] / reach;
+      _w[1] = 0;
+      _w[2] = -_u[0] / reach;
+      _u[0] = _u[1] = _u[2] = 0;
+    } else {
+      cup.body.sample(h.x, h.y, h.z, _u);
+      cup.body.spin(h.x, h.y, h.z, _w);
+    }
+    f.position.set(h.x + _u[0], h.y + _u[1], h.z + _u[2]);
+    const angle = Math.hypot(_w[0], _w[1], _w[2]);
+    if (angle > 1e-6) f.quaternion.copy(_q.setFromAxisAngle(_axis.set(_w[0], _w[1], _w[2]).divideScalar(angle), angle)).multiply(h.q);
+    else f.quaternion.copy(h.q);
   }
 }
 
