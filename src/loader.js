@@ -1,7 +1,7 @@
 // Loading screen: a brush paints a quick study of the scene on the paper while the 3D side compiles.
 // Kept free of three.js so it starts before the big bundle arrives.
 
-import { THEMES, backdropAt } from './themes.js';
+import { THEMES, PALETTES, backdropAt } from './themes.js';
 
 const FRAME = 0.62; // must match postU.frameSize
 
@@ -17,11 +17,12 @@ const dg = doneCanvas.getContext('2d');
 const maskCanvas = document.createElement('canvas');
 const grainCanvas = document.createElement('canvas');
 
-let themeName = new URLSearchParams(location.search).get('theme');
-if (!THEMES[themeName]) themeName = 'cherry';
-const theme = THEMES[themeName];
+// Same choice the app will make from the URL: which cup, or which backdrop for an empty model painting.
+const params = new URLSearchParams(location.search);
+const withCup = params.get('mode') !== 'model';
+const theme = THEMES[params.get('theme')] ?? THEMES.cherry;
+const palette = withCup ? PALETTES[theme.palette] : PALETTES[params.get('palette')] ?? PALETTES.lilac;
 const study = theme.study;
-const withCup = document.body.dataset.page !== 'model';
 
 let seed = 5;
 const rand = () => {
@@ -41,7 +42,7 @@ for (let i = 0; i < 30; i++) {
   const y = -0.04 + ((i % 15) + R(0.2, 0.8)) / 14;
   const left = rand() < 0.5;
   const x0 = left ? -0.1 : 1.1, x1 = left ? R(0.55, 1.1) : R(-0.1, 0.45);
-  const c = backdropAt(theme.backdrop, (x0 + x1) / 2, y);
+  const c = backdropAt(palette.backdrop, (x0 + x1) / 2, y);
   add(x0, y, x1, y + R(-0.05, 0.05), R(0.1, 0.16), rgb(c, R(-10, 10)), R(0.1, 0.16), i < 15 ? 0.85 : 0.45);
 }
 
@@ -52,7 +53,7 @@ if (withCup) {
   const wTop = tall ? 0.42 : 0.6, wBot = tall ? 0.28 : 0.44;
   const halfW = (y) => (wTop + (wBot - wTop) * ((y - top) / (bottom - top))) / 2;
   const sd = tall ? 1 : -1; // shadow falls right for Kiwi, left for Cherry
-  const sc = backdropAt(theme.backdrop, 0.5 + sd * 0.25, 0.8);
+  const sc = backdropAt(palette.backdrop, 0.5 + sd * 0.25, 0.8);
   for (let i = 0; i < 4; i++) add(0.5, bottom - 0.02 + R(-0.03, 0.03), 0.5 + sd * R(0.32, 0.45), bottom + R(0.03, 0.12), 0.09, rgb(sc, -38), 0.18, 0.5);
   const creamTop = bottom - (bottom - top) * 0.3;
   for (let i = 0; i < 4; i++) {

@@ -62,8 +62,10 @@ function arc(points, cx, cy, r, a0, a1, n) {
 
 function cupProfile(c) {
   const { H, Rb, T, BASE } = c;
-  const pts = [V(0.0001, 0), V(Rb - 0.02, 0)];
-  arc(pts, Rb - 0.02, 0.02, 0.02, -Math.PI / 2, 0, 4);
+  // Base sits a hair above the table: coplanar faces z-fight and the bottom flickers.
+  const lift = 0.004;
+  const pts = [V(0.0001, lift), V(Rb - 0.02, lift)];
+  arc(pts, Rb - 0.02, 0.02 + lift, 0.02, -Math.PI / 2, 0, 4);
   const top = c.flange ? H - 0.035 : H - T / 2;
   for (let i = 1; i <= 16; i++) {
     const y = 0.02 + ((top - 0.02) * i) / 16;
@@ -135,7 +137,7 @@ function glassMaterial(c, normalTex) {
     .mul(breakup).mul(smoothstep(0.02, 0.12, y)).mul(0.55);
   const rimTop = c.H - 0.012;
   // Thin bright line along the lip only (the band is a few millimetres of the profile, not the whole rolled edge).
-  const rim = smoothstep(rimTop - 0.003, rimTop + 0.002, y).mul(smoothstep(rimTop + 0.016, rimTop + 0.008, y)).add(smoothstep(0.02, 0.0, y).mul(0.3));
+  const rim = smoothstep(rimTop - 0.003, rimTop + 0.002, y).mul(smoothstep(rimTop + 0.016, rimTop + 0.008, y));
   m.normalNode = normalMap(texture(normalTex, uv().mul(vec2(3, 1))), vec2(0.4));
   m.opacityNode = max(max(mix(float(0.03), float(0.4), edge), streaks.mul(0.9)), rim.mul(0.6)).clamp(0, 1);
   m.emissiveNode = vec3(0.92, 0.87, 1).mul(edge.mul(0.5))
@@ -388,8 +390,8 @@ export const tableU = {
   shadowOpacity: uniform(0.5),
 };
 
-export function setTableTheme(theme) {
-  const b = theme.backdrop;
+export function setPalette(palette) {
+  const b = palette.backdrop;
   tableU.base.value.set(b.base);
   tableU.glows.forEach((u, i) => {
     const g = b.glows[i];
@@ -399,8 +401,8 @@ export function setTableTheme(theme) {
     u.strength.value = g?.strength ?? 0;
   });
   tableU.noise.value = b.noise;
-  tableU.shadow.value.set(theme.shadow.color);
-  tableU.shadowOpacity.value = theme.shadow.opacity;
+  tableU.shadow.value.set(palette.shadow.color);
+  tableU.shadowOpacity.value = palette.shadow.opacity;
 }
 
 // Colours are display-space picks; divide out the exposure so they land on screen as picked.
@@ -442,10 +444,13 @@ export function buildTable() {
 
   return {
     group,
-    // Anchor at the object, aim away from the light; length/width from the theme.
-    placeShadow(theme, x, z, awayAngle) {
-      shadow.scale.set(theme.shadow.length, theme.shadow.width, 1);
-      shadow.position.x = theme.shadow.length * 0.5 - 0.3;
+    setShadowVisible(v) {
+      shadowArm.visible = v;
+    },
+    // Anchor at the object, aim away from the light; length/width from the palette.
+    placeShadow(palette, x, z, awayAngle) {
+      shadow.scale.set(palette.shadow.length, palette.shadow.width, 1);
+      shadow.position.x = palette.shadow.length * 0.5 - 0.3;
       shadowArm.position.set(x, 0, z);
       shadowArm.rotation.y = awayAngle;
     },

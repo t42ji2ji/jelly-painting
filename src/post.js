@@ -20,6 +20,7 @@ export const postU = {
   frameSize: uniform(0.62), // painting side as a fraction of the shorter screen side
   strength: uniform(1),
   reveal: uniform(1), // 0 → 1: brush strokes lay the painting over the loading study
+  excite: uniform(0), // 0 → 1 while the subject is being shaken: stars flare, extra glints appear
 };
 
 const STEPS = 8;
@@ -138,13 +139,27 @@ export function createPost(renderer, scene, camera) {
     const cr3 = fract(sin(dot(cell, vec2(269.5, 183.3))).mul(43758.5453));
     const center = cell.add(vec2(cr2, cr3).mul(0.5).add(0.25)).div(cells).sub(0.5);
     const size = cr3.mul(0.018).add(0.02);
-    const twinkle = sin(time.mul(1.3).add(cr.mul(40))).mul(0.12).add(1);
+    const twinkle = sin(time.mul(float(1.3).add(postU.excite.mul(9))).add(cr.mul(40))).mul(float(0.12).add(postU.excite.mul(0.3))).add(1).add(postU.excite.mul(0.35));
     const o = fq.sub(center).div(size.mul(twinkle));
     const f = sqrt(abs(o.x).div(0.92)).add(sqrt(abs(o.y).div(0.92)));
     const ragged = float(1).sub(n4.sub(0.5).mul(0.3));
     const placed = cr.greaterThan(0.72).and(length(center).greaterThan(0.36));
     const star = select(placed, float(1), float(0)).mul(f.lessThan(ragged).select(n2.greaterThan(0.12).select(1, 0.5), 0));
     col = mix(col, vec3(1, 0.96, 0.87), star.mul(0.92));
+
+    // Small glints that only come out while it's shaken, each flickering on its own beat.
+    const gCells = float(16);
+    const gCell = fq.add(0.5).mul(gCells).floor();
+    const gr = fract(sin(dot(gCell, vec2(12.9898, 78.233))).mul(43758.5453));
+    const gr2 = fract(sin(dot(gCell, vec2(39.35, 11.13))).mul(43758.5453));
+    const gCenter = gCell.add(vec2(gr2, gr).mul(0.6).add(0.2)).div(gCells).sub(0.5);
+    const gBeat = sin(time.mul(14).add(gr.mul(60))).mul(0.5).add(0.5);
+    const gSize = gr2.mul(0.006).add(0.005).mul(gBeat);
+    const go = fq.sub(gCenter).div(max(gSize, 1e-4));
+    const gf = sqrt(abs(go.x).div(0.92)).add(sqrt(abs(go.y).div(0.92)));
+    const gOn = gr.lessThan(postU.excite.mul(0.6)).and(length(gCenter).greaterThan(0.3));
+    const glint = select(gOn, float(1), float(0)).mul(gf.lessThan(ragged).select(1, 0));
+    col = mix(col, vec3(1, 0.97, 0.9), glint.mul(0.9));
 
     const paper = vec3(postU.paper).add(n3.sub(0.5).mul(0.02));
 

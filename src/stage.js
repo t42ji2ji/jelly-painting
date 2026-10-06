@@ -1,11 +1,11 @@
-// Shared stage for both pages: renderer, painted backdrop + table, lights, camera, painterly post, theme switch,
-// loading reveal. A page adds its subject to `stage.subject` and supplies per-frame work through stage.run().
+// Shared stage: renderer, painted backdrop + table, lights, camera, painterly post, drag + wobble sim, loading reveal.
+// The app puts its subject in `stage.subject`, picks a palette, and supplies per-frame work through stage.run().
 
 import * as THREE from 'three/webgpu';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { THEMES } from './themes.js';
-import { buildTable, setTableTheme, backdropNode } from './scene.js';
+import { PALETTES } from './themes.js';
+import { buildTable, setPalette, backdropNode } from './scene.js';
 import { createPost, postU } from './post.js';
 import { createSim } from './sim.js';
 import { cursor } from './cursor.js';
@@ -20,7 +20,7 @@ const KEY = { az: -121, el: 54 };
 const away = sph(KEY.az + 180, 0, 1);
 export const SHADOW_ANGLE = Math.atan2(-away.z, away.x);
 
-export async function createStage({ onTheme }) {
+export async function createStage() {
   const canvas = document.querySelector('canvas.scene');
   const renderer = new THREE.WebGPURenderer({ canvas, antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
@@ -60,37 +60,21 @@ export async function createStage({ onTheme }) {
 
   const stage = {
     renderer, scene, camera, controls, table, subject, canvas,
-    hit: null, // what can be grabbed; set by the page (possibly from onTheme during setup)
-    themeName: null,
-    get theme() {
-      return THEMES[this.themeName];
+    hit: null, // what can be grabbed; set by the app
+    palette: PALETTES.cherry,
+    setPalette(name) {
+      this.palette = PALETTES[name];
+      setPalette(this.palette);
+      key.color.set(this.palette.light);
     },
-    setTheme(name) {
-      this.themeName = name;
-      setTableTheme(THEMES[name]);
-      key.color.set(THEMES[name].light);
-      for (const b of document.querySelectorAll('.themes button')) b.setAttribute('aria-pressed', b.dataset.theme === name);
-      onTheme(name, this);
-    },
-    // Put the camera at the theme's default angle, framing a subject of the given height and width.
-    frame(height, width, targetY) {
+    // Camera at the given azimuth, framing a subject of the given height and width; also re-centres the subject.
+    frame(height, width, targetY, azimuth) {
+      sim.reset();
       controls.target.set(0, targetY, 0);
-      camera.position.copy(controls.target).add(sph(this.theme.cameraAzimuth, 32.5, (Math.max(height * 1.1 + 0.15, width * 0.95) / 0.237) * 0.95));
+      camera.position.copy(controls.target).add(sph(azimuth, 32.5, (Math.max(height * 1.1 + 0.15, width * 0.95) / 0.237) * 0.95));
       controls.update();
     },
   };
-
-  const nav = document.querySelector('.themes');
-  for (const name of Object.keys(THEMES)) {
-    const b = document.createElement('button');
-    b.textContent = THEMES[name].label;
-    b.dataset.theme = name;
-    b.onclick = () => stage.setTheme(name);
-    nav.insertBefore(b, nav.querySelector("a"));
-  }
-  let first = new URLSearchParams(location.search).get('theme');
-  if (!THEMES[first]) first = 'cherry';
-  stage.setTheme(first);
 
   const { pipeline } = createPost(renderer, scene, camera);
   postU.reveal.value = 0;
@@ -103,7 +87,6 @@ export async function createStage({ onTheme }) {
 
   // Dragging the subject: grab it (stage.hit), slide it across the table; elsewhere the orbit controls take over.
   const sim = createSim();
-  stage.sim = sim;
   const ray = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
   const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -168,6 +151,7 @@ export async function createStage({ onTheme }) {
     await renderer.compileAsync(scene, camera);
     const clock = new THREE.Timer();
     let frames = 0;
+    let excite = 0;
     let revealStart = -1;
     renderer.setAnimationLoop((now) => {
       clock.update(now);
@@ -177,8 +161,12 @@ export async function createStage({ onTheme }) {
       const s = sim.state;
       subject.position.set(s.cup.x, 0, s.cup.z);
       subject.rotation.set(s.tilt.x, 0, s.tilt.z);
-      table.placeShadow(stage.theme, s.cup.x, s.cup.z, SHADOW_ANGLE);
+      table.placeShadow(stage.palette, s.cup.x, s.cup.z, SHADOW_ANGLE);
       update(dt, s);
+      // Shake energy for the stars: rises fast with the jelly's motion, fades over about a second.
+      const energy = Math.min(1, Math.hypot(s.slosh.vx, s.slosh.vz) * 3 + Math.hypot(s.cup.vx, s.cup.vz) * 0.4);
+      excite += (energy - excite) * (1 - Math.exp(-(energy > excite ? 12 : 1.5) * dt));
+      postU.excite.value = excite;
       controls.update();
       pipeline.render();
       // Let the study paint a while, then sweep the real painting over it.

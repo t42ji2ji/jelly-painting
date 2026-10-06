@@ -8,8 +8,12 @@
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
-    <canvas class="scene" aria-label="A painted dessert cup with a wobbling jelly. Drag the cup to slide it, S to shake, drag elsewhere to orbit."></canvas>
-    <nav class="themes" aria-label="Theme"><a href="./model.html">模型</a></nav>
+    <canvas class="scene" aria-label="A painted dessert cup with a wobbling jelly, or a dropped 3D model. Drag the subject to slide and wobble it, S to shake, drag elsewhere to orbit."></canvas>
+    <div class="swatches" aria-label="Backdrop"></div>
+    <button class="add big" aria-label="加入模型"><span>.glb / .gltf</span></button>
+    <button class="add small" aria-label="換一個模型"></button>
+    <input class="file" type="file" accept=".glb,.gltf" hidden />
+    <nav class="modes"><button data-mode="cup">果凍杯</button><button data-mode="model">模型</button></nav>
     <script type="module">
       import '/src/loader.js';
       import('/src/main.js').catch((e) => {

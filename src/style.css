@@ -1,20 +1,30 @@
+:root { --S: min(62vw, 62vh); --ink: #7d6757; } /* --S: painting side, must match postU.frameSize */
 html, body { margin: 0; height: 100%; background: #f7f5f0; overflow: hidden; }
-canvas { position: fixed; inset: 0; display: block; width: 100vw; height: 100vh; touch-action: none; }
+canvas { display: block; }
+canvas.scene, canvas.loader { position: fixed; inset: 0; width: 100vw; height: 100vh; touch-action: none; }
 canvas.loader { pointer-events: none; }
-@media (pointer: fine) { canvas.scene { cursor: none; } }
-.cursor { position: fixed; left: 0; top: 0; z-index: 10; margin: -24px 0 0 -24px; pointer-events: none; opacity: 0; transition: scale 0.18s, opacity 0.2s; }
-.cursor.visible { opacity: 1; }
-.cursor.visible.away { opacity: 0; }
-.cursor.hover { scale: 1.35; }
-.cursor.pressed { scale: 0.85; }
-.themes { position: fixed; left: 50%; bottom: max(6px, env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; gap: 18px; }
-.themes button { font: 700 17px/1 cursive; color: #7d6757; background: none; border: 0; padding: 6px 4px; cursor: pointer; opacity: 0.5; }
-.themes button[aria-pressed='true'] { opacity: 1; }
-.fail { position: fixed; inset: 0; display: grid; place-items: center; font: 700 19px/1.4 cursive; color: #7d6757; padding: 16px; text-align: center; }
-    
-.themes a { font: 700 17px/1 cursive; color: #7d6757; text-decoration: none; padding: 6px 4px; opacity: 0.5; margin-left: 14px; }
-.themes a:hover, .themes button:hover { opacity: 1; }
-.drop { position: fixed; left: 50%; top: max(10px, env(safe-area-inset-top)); transform: translateX(-50%); font: 700 16px/1 cursive; color: #7d6757; display: flex; gap: 10px; align-items: center; white-space: nowrap; }
-.drop label { cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
-.drop input { display: none; }
-body.dragover .drop { color: #3c2f25; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; }
+
+.modes { position: fixed; left: 50%; bottom: max(8px, env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; gap: 22px; font: 700 17px/1 cursive; color: var(--ink); }
+.modes button { padding: 6px 4px; opacity: 0.5; transition: opacity 0.2s; }
+.modes button:hover, .modes button[aria-pressed='true'] { opacity: 1; }
+
+/* Backdrop swatches beside the painting, bottom-aligned with it like the original's minis. */
+.swatches { position: fixed; right: calc(50vw + var(--S) / 2 + 22px); bottom: calc(50vh - var(--S) / 2); display: flex; flex-direction: column-reverse; flex-wrap: wrap-reverse; gap: 8px; max-height: var(--S); }
+.swatch { opacity: 0.5; transition: opacity 0.2s, scale 0.2s; }
+.swatch:hover { opacity: 0.85; }
+.swatch[aria-pressed='true'] { opacity: 1; }
+.swatch canvas { width: 44px; height: 44px; }
+@media (max-aspect-ratio: 1/1) {
+  .swatches { right: auto; left: 50%; bottom: auto; top: calc(50vh + var(--S) / 2 + 14px); transform: translateX(-50%); flex-direction: row; flex-wrap: wrap; justify-content: center; max-height: none; width: var(--S); }
+  .swatch canvas { width: 40px; height: 40px; }
+}
+
+/* The + in the middle of an empty model painting, and its small twin in the corner once a model is in. */
+.add { position: fixed; display: none; flex-direction: column; align-items: center; gap: 6px; font: 700 14px/1 cursive; color: #fff3d6; transition: scale 0.2s; }
+.add:hover, body.dragover .add { scale: 1.12; }
+.add.big { left: 50%; top: 50%; transform: translate(-50%, -50%); }
+.add.small { left: calc(50vw + var(--S) / 2 - 50px); top: calc(50vh + var(--S) / 2 - 50px); }
+body[data-mode='model']:not(.has-model) .add.big, body[data-mode='model'].has-model .add.small { display: flex; }
+
+.fail { position: fixed; inset: 0; display: grid; place-items: center; font: 700 19px/1.4 cursive; color: var(--ink); padding: 16px; text-align: center; }

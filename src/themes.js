@@ -1,7 +1,8 @@
-// Colour tables per theme. Display-space colours sampled from the original's Cherry / Kiwi paintings.
-// backdrop: base colour plus soft glows, positioned in painting coordinates ((0,0) top-left, (1,1) bottom-right).
+// Backdrops: base colour plus soft glows in painting coordinates ((0,0) top-left, (1,1) bottom-right), display space.
+// Cherry and Kiwi are sampled from the original; the rest are new, built the same way (a mid tone, a light corner,
+// a cool or warm counter-corner, a deeper pool low in the frame).
 
-export const THEMES = {
+export const PALETTES = {
   cherry: {
     label: 'Cherry',
     backdrop: {
@@ -15,13 +16,7 @@ export const THEMES = {
       noise: 0.035,
     },
     shadow: { color: '#5d78c0', opacity: 0.55, length: 1.5, width: 1.05 },
-    cameraAzimuth: 113.5,
     light: '#ffdcbd',
-    cup: { H: 0.5, Rb: 0.36, Rt: 0.52, flange: false },
-    jelly: { attenuation: '#e86dff', glow: '#ff3a40', fill: 0.78 },
-    cream: { color: '#ffcbb2', shade: '#f19a8c', glow: '#f44b85', height: 0.28 },
-    fruits: { peach: 6, mandarin: 5, cherry: 4, pineapple: 3, mango: 3, shiratama: 2 },
-    study: { jelly: '#e7aabb', cream: '#f2a6a6', fruit: ['#e07155', '#df9a71', '#d23a4a', '#f2b38a'], glass: '#eef4fb' },
   },
   kiwi: {
     label: 'Kiwi',
@@ -36,8 +31,101 @@ export const THEMES = {
       noise: 0.03,
     },
     shadow: { color: '#3a9fae', opacity: 0.4, length: 1.3, width: 0.8 },
-    cameraAzimuth: -23.5,
     light: '#ffe48c',
+  },
+  peach: {
+    label: 'Peach',
+    backdrop: {
+      base: '#efb9a6',
+      glows: [
+        { at: [1, 0], radius: 0.75, color: '#f8dcc0', strength: 0.9 },
+        { at: [0, 0.6], radius: 0.6, color: '#e2a3b6', strength: 0.8 },
+        { at: [0.6, 1.05], radius: 0.55, color: '#dc928c', strength: 0.6 },
+        { at: [0.1, 0.05], radius: 0.4, color: '#f3c8b4', strength: 0.5 },
+      ],
+      noise: 0.03,
+    },
+    shadow: { color: '#c0707e', opacity: 0.45, length: 1.4, width: 0.95 },
+    light: '#ffe2c4',
+  },
+  lilac: {
+    label: 'Lilac',
+    backdrop: {
+      base: '#a59bd4',
+      glows: [
+        { at: [1, 0], radius: 0.7, color: '#d2c3ea', strength: 0.9 },
+        { at: [0, 0.7], radius: 0.6, color: '#8288cc', strength: 0.75 },
+        { at: [0.5, 1.05], radius: 0.5, color: '#8c79c2', strength: 0.6 },
+        { at: [0.85, 0.9], radius: 0.4, color: '#e4b9d6', strength: 0.5 },
+      ],
+      noise: 0.03,
+    },
+    shadow: { color: '#5f5aa8', opacity: 0.5, length: 1.5, width: 1.0 },
+    light: '#ffe0d0',
+  },
+  butter: {
+    label: 'Butter',
+    backdrop: {
+      base: '#efd48e',
+      glows: [
+        { at: [1, 0], radius: 0.75, color: '#f8ebbf', strength: 0.9 },
+        { at: [0, 0.65], radius: 0.6, color: '#e6bc78', strength: 0.75 },
+        { at: [0.55, 1.05], radius: 0.5, color: '#d8a86a', strength: 0.55 },
+        { at: [0.9, 0.85], radius: 0.4, color: '#c9d49a', strength: 0.45 },
+      ],
+      noise: 0.03,
+    },
+    shadow: { color: '#b48850', opacity: 0.45, length: 1.4, width: 0.95 },
+    light: '#fff0cc',
+  },
+  seaglass: {
+    label: 'Sea glass',
+    backdrop: {
+      base: '#8ec6bd',
+      glows: [
+        { at: [1, 0], radius: 0.7, color: '#cfe6d6', strength: 0.9 },
+        { at: [0, 0.7], radius: 0.6, color: '#6ea9bf', strength: 0.75 },
+        { at: [0.55, 1.05], radius: 0.5, color: '#5f9fae', strength: 0.55 },
+        { at: [0.1, 0.05], radius: 0.4, color: '#b5d8c9', strength: 0.5 },
+      ],
+      noise: 0.03,
+    },
+    shadow: { color: '#4b8a9e', opacity: 0.45, length: 1.4, width: 0.95 },
+    light: '#fff2dc',
+  },
+  night: {
+    label: 'Night',
+    backdrop: {
+      base: '#3d4878',
+      glows: [
+        { at: [1, 0], radius: 0.75, color: '#6670a6', strength: 0.85 },
+        { at: [0, 0.7], radius: 0.6, color: '#2c3360', strength: 0.75 },
+        { at: [0.5, 1.05], radius: 0.55, color: '#4a3c74', strength: 0.6 },
+        { at: [0.15, 0.05], radius: 0.4, color: '#525e93', strength: 0.5 },
+      ],
+      noise: 0.04,
+    },
+    shadow: { color: '#1c2146', opacity: 0.55, length: 1.5, width: 1.0 },
+    light: '#ffd9b0',
+  },
+};
+
+// Cup scenes: contents and framing; the backdrop comes from their palette.
+export const THEMES = {
+  cherry: {
+    label: 'Cherry',
+    palette: 'cherry',
+    cameraAzimuth: 113.5,
+    cup: { H: 0.5, Rb: 0.36, Rt: 0.52, flange: false },
+    jelly: { attenuation: '#e86dff', glow: '#ff3a40', fill: 0.78 },
+    cream: { color: '#ffcbb2', shade: '#f19a8c', glow: '#f44b85', height: 0.28 },
+    fruits: { peach: 6, mandarin: 5, cherry: 4, pineapple: 3, mango: 3, shiratama: 2 },
+    study: { jelly: '#e7aabb', cream: '#f2a6a6', fruit: ['#e07155', '#df9a71', '#d23a4a', '#f2b38a'], glass: '#eef4fb' },
+  },
+  kiwi: {
+    label: 'Kiwi',
+    palette: 'kiwi',
+    cameraAzimuth: -23.5,
     cup: { H: 0.74, Rb: 0.27, Rt: 0.4, flange: true },
     jelly: { attenuation: '#b6ff00', glow: '#2bd410', fill: 0.8 },
     cream: { color: '#efe34a', shade: '#d7e08c', glow: '#ffcf00', height: 0.3 },

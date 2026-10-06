@@ -115,5 +115,15 @@ export function createSim(p = SIM) {
     shake() {
       s.shakeStart = s.t;
     },
+    // Back to rest at the centre (new subject).
+    reset() {
+      Object.assign(s.target, { x: 0, z: 0 });
+      Object.assign(s.cup, { x: 0, z: 0, vx: 0, vz: 0, ax: 0, az: 0 });
+      Object.assign(s.slosh, { x: 0, z: 0, vx: 0, vz: 0 });
+      Object.assign(s.lag, { x: 0, z: 0 });
+      Object.assign(s.wave, { y: 0, v: 0 });
+      Object.assign(s.tilt, { x: 0, z: 0, vx: 0, vz: 0 });
+      s.shakeStart = -1;
+    },
   };
 }
