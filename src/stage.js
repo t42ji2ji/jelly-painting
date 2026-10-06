@@ -76,8 +76,14 @@ export async function createStage() {
     },
   };
 
-  const { pipeline, bristles } = createPost(renderer, scene, camera);
+  const { pipeline, bristles, scenePass } = createPost(renderer, scene, camera);
   stage.bristles = bristles; // the tuning panel re-renders it when the rib size changes
+  // Compile an object's shaders for the real scene pass ahead of time, so showing it later doesn't stall.
+  stage.warm = async (object) => {
+    renderer.setRenderTarget(scenePass.renderTarget);
+    await renderer.compileAsync(object, camera, scene);
+    renderer.setRenderTarget(null);
+  };
   postU.reveal.value = 0;
 
   addEventListener('resize', () => {

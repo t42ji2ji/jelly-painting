@@ -173,5 +173,20 @@ addEventListener('drop', (e) => {
 setMode(state.mode);
 stage.run((dt, s) => current.update(dt, s));
 
+// Once the painting is up, quietly compile the other cups and the presets so switching to them doesn't stall.
+setTimeout(async () => {
+  for (const [name, theme] of Object.entries(THEMES)) {
+    if (name === state.theme) continue;
+    const other = buildCup(theme);
+    await stage.warm(other.group);
+    other.group.traverse((o) => o.geometry?.dispose());
+  }
+  for (const preset of Object.values(PRESETS)) {
+    const model = preset.build();
+    await stage.warm(model);
+    model.traverse((o) => o.geometry?.dispose());
+  }
+}, 2500);
+
 // Local development only: a panel for the painting's texture and grain.
 if (location.hostname === 'localhost') import('./tune.js').then((m) => m.createTuner(stage));
