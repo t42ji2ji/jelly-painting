@@ -6,16 +6,16 @@
 import * as THREE from 'three/webgpu';
 import {
   pass, rtt, Fn, vec2, vec3, vec4, float, uniform, screenUV, screenSize, screenCoordinate,
-  mix, smoothstep, fract, dot, sqrt, max, min, abs, length, mx_noise_float, mx_fractal_noise_float, select, renderOutput,
+  mix, smoothstep, fract, dot, sqrt, max, min, abs, length, mx_noise_float, mx_fractal_noise_float, select, renderOutput, time, sin, exp,
 } from 'three/tsl';
 
 export const postU = {
   spacing: uniform(5), // px between Sobel taps
-  strokeLength: uniform(26), // px
+  strokeLength: uniform(12), // px
   bristleScale: uniform(3.2),
   ribContrast: uniform(0.16),
-  speckle: uniform(5), // px of fixed scatter at the stroke start
-  grain: uniform(0.05),
+  speckle: uniform(6), // px of fixed scatter at the stroke start
+  grain: uniform(0.075),
   paper: uniform(new THREE.Color('#f7f5f0').convertLinearToSRGB()), // display-space, the frame is composited after tone mapping
   frameSize: uniform(0.62), // painting side as a fraction of the shorter screen side
   strength: uniform(1),
@@ -109,26 +109,40 @@ export function createPost(renderer, scene, camera) {
     // Tone map here so grain and paper live in display space.
     let col = renderOutput(vec4(mix(base, smeared.mul(ribs), postU.strength), 1)).rgb;
 
-    // Fixed dither: tied to the pixel, not to time, so it reads as paper tooth.
-    col = col.add(n3.sub(0.5).mul(postU.grain));
+    // Fixed dither: tied to the pixel, not to time, so it reads as paper tooth. A little of it per channel.
+    col = col.add(n3.sub(0.5).mul(postU.grain)).add(vec3(n1, n2, n3).sub(0.5).mul(postU.grain.mul(0.45)));
 
     // 3. Deckled frame.
     const aspect = screenSize.x.div(screenSize.y);
     const q = screenUV.sub(0.5).mul(vec2(aspect, 1));
     const half = vec2(min(aspect, 1).mul(postU.frameSize).mul(0.5));
-    const rad = float(0.05);
+    const rad = half.x.mul(0.09);
     const dq = abs(q).sub(half).add(rad);
     const sd = length(max(dq, 0)).add(min(max(dq.x, dq.y), 0)).sub(rad);
-    // Edge wobble plus bristle streaks running out of the painting, perpendicular to the nearest edge.
-    const deckle = mx_fractal_noise_float(vec3(q.mul(6), 11), 3).mul(0.012);
-    const nearSide = dq.x.greaterThan(dq.y);
-    const bristleUv = select(nearSide, vec2(q.x.mul(6), q.y.mul(160)), vec2(q.x.mul(160), q.y.mul(6)));
-    const bristle = mx_noise_float(vec3(bristleUv, 13)).mul(0.01);
-    const d = sd.add(deckle).add(bristle);
+    // A gentle hand-cut wobble, then the edge dissolves into grain over a few pixels instead of a hard line.
+    const deckle = mx_fractal_noise_float(vec3(q.mul(5), 11), 2).mul(half.x.mul(0.012));
+    const d = sd.add(deckle);
     const px = float(1).div(screenSize.y);
-    // Thin paint near the edge lets the paper show through.
-    const thin = smoothstep(-0.03, 0, d).mul(mx_noise_float(vec3(q.mul(40), 17)).mul(0.5).add(0.5)).mul(0.6);
-    const mask = smoothstep(px.mul(1.5), px.mul(-1.5), d).mul(float(1).sub(thin));
+    const edgeW = px.mul(5);
+    // White-noise hash here: the interleaved-gradient pattern shows up as a regular halftone along the edge.
+    const n4 = fract(sin(dot(fc, vec2(12.9898, 78.233))).mul(43758.5453));
+    const thin = smoothstep(edgeW.mul(-5), 0, d).mul(0.25);
+    const mask = smoothstep(edgeW, edgeW.negate(), d.add(n4.sub(0.5).mul(edgeW).mul(2.4))).mul(float(1).sub(thin));
+
+    // Four-point sparkles scattered over the painting, twinkling slowly.
+    const fq = q.div(half.x.mul(2)); // painting units, side = 1
+    const cells = float(11);
+    const cell = fq.mul(cells).floor();
+    const cr = ign(cell.mul(13.7).add(5));
+    const cr2 = ign(cell.mul(7.1).add(11));
+    const center = cell.add(vec2(cr2, ign(cell.mul(3.3).add(2))).mul(0.5).add(0.25)).div(cells);
+    const o = fq.sub(center);
+    const size = cr2.mul(0.012).add(0.008);
+    const arm = (a, b) => exp(abs(b).div(size.mul(0.07)).negate()).mul(float(1).sub(abs(a).div(size)).clamp(0, 1).pow(2));
+    const twinkle = sin(time.mul(1.7).add(cr.mul(40))).mul(0.35).add(0.75);
+    const star = arm(o.x, o.y).add(arm(o.y, o.x)).add(exp(length(o).div(size.mul(0.12)).negate()))
+      .mul(cr.greaterThan(0.86).select(1, 0)).mul(twinkle).clamp(0, 1);
+    col = mix(col, vec3(1, 0.97, 0.9), star.mul(0.9));
 
     const paper = vec3(postU.paper).add(n3.sub(0.5).mul(0.02));
 

@@ -8,13 +8,13 @@ export const SIM = {
   maxSpeed: 12,
   maxAccel: 300,
   returnDamping: 0.55,
-  jellyFrequency: 2.1,
-  jellyDamping: 0.38,
-  response: 0.2,
-  maxDisplacement: 0.1,
-  waveFrequency: 2.8,
-  waveDamping: 0.5,
-  fruitLag: 0.12,
+  jellyFrequency: 0.9,
+  jellyDamping: 1.3,
+  viscosity: 0.12, // jelly sags against the cup's velocity, like syrup dragged along
+  maxDisplacement: 0.075,
+  waveFrequency: 2.2,
+  waveDamping: 1.2,
+  fruitLag: 0.3,
   tiltFrequency: 3,
   tiltDamping: 0.35,
   tiltMax: (3 * Math.PI) / 180,
@@ -65,11 +65,11 @@ export function createSim(p = SIM) {
     c.ax = ax;
     c.az = az;
 
-    // Jelly lags behind the cup: driven by the negative cup acceleration.
+    // Thick jelly: its top drags behind the cup's velocity and creeps back, overdamped (no ringing).
     const j = s.slosh;
     const wj = TAU * p.jellyFrequency;
-    j.vx += (-wj * wj * j.x - 2 * p.jellyDamping * wj * j.vx - ax * p.response) * dt;
-    j.vz += (-wj * wj * j.z - 2 * p.jellyDamping * wj * j.vz - az * p.response) * dt;
+    j.vx += (wj * wj * (-c.vx * p.viscosity - j.x) - 2 * p.jellyDamping * wj * j.vx) * dt;
+    j.vz += (wj * wj * (-c.vz * p.viscosity - j.z) - 2 * p.jellyDamping * wj * j.vz) * dt;
     j.x += j.vx * dt;
     j.z += j.vz * dt;
     // Soft limit: the jelly can only lean so far before it pushes back.
