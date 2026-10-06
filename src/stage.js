@@ -60,6 +60,7 @@ export async function createStage({ onTheme }) {
 
   const stage = {
     renderer, scene, camera, controls, table, subject, canvas,
+    hit: null, // what can be grabbed; set by the page (possibly from onTheme during setup)
     themeName: null,
     get theme() {
       return THEMES[this.themeName];
@@ -103,7 +104,6 @@ export async function createStage({ onTheme }) {
   // Dragging the subject: grab it (stage.hit), slide it across the table; elsewhere the orbit controls take over.
   const sim = createSim();
   stage.sim = sim;
-  stage.hit = null;
   const ray = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
   const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -119,13 +119,14 @@ export async function createStage({ onTheme }) {
     if (e.button !== 0) return;
     pointerRay(e);
     if (!onSubject()) return;
+    e.stopImmediatePropagation(); // the orbit controls never see a press that grabs the subject
     plane.constant = -controls.target.y;
     if (!ray.ray.intersectPlane(plane, hitPoint)) return;
     dragging = e.pointerId;
     controls.enabled = false;
     grab.set(hitPoint.x - sim.state.target.x, hitPoint.z - sim.state.target.z);
     canvas.setPointerCapture(e.pointerId);
-  });
+  }, { capture: true });
   canvas.addEventListener('pointermove', (e) => {
     pointerRay(e);
     if (dragging === null) return cursor.hover(onSubject());
