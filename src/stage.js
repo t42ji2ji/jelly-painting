@@ -79,10 +79,13 @@ export async function createStage() {
   const { pipeline, bristles, scenePass } = createPost(renderer, scene, camera);
   stage.bristles = bristles; // the tuning panel re-renders it when the rib size changes
   // Compile an object's shaders for the real scene pass ahead of time, so showing it later doesn't stall.
-  stage.warm = async (object) => {
+  // compileAsync reads the render target synchronously before its first await, so the target is put back at once:
+  // frames drawn while the shaders compile must not render into the scene pass's own texture.
+  stage.warm = (object) => {
     renderer.setRenderTarget(scenePass.renderTarget);
-    await renderer.compileAsync(object, camera, scene);
+    const done = renderer.compileAsync(object, camera, scene);
     renderer.setRenderTarget(null);
+    return done;
   };
   postU.reveal.value = 0;
 
