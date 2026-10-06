@@ -24,7 +24,6 @@ export function createJelly(c, p = JELLY) {
   const size = [2 * R, c.yJ - c.BASE, 2 * R];
   const h = [size[0] / p.cells, size[1] / p.layers, size[2] / p.cells];
   const n = nx * ny * nz;
-  const stableDt = (0.4 * Math.min(...h)) / Math.sqrt(p.bulk + 2 * p.stiffness);
   const idx = (i, j, k) => (k * ny + j) * nx + i;
 
   const u = new Float32Array(n * 3);
@@ -154,6 +153,7 @@ export function createJelly(c, p = JELLY) {
       const fx = -(cup.ax * p.inertia + cup.vx * p.drag);
       const fz = -(cup.az * p.inertia + cup.vz * p.drag);
       // Explicit steps are only stable below about h / wave speed: a shallow cup (tight layers) or a slow frame takes more.
+      const stableDt = (0.4 * Math.min(...h)) / Math.sqrt(p.bulk + 2 * p.stiffness);
       const n = Math.max(p.substeps, Math.ceil(dt / stableDt));
       for (let s = 0; s < n; s++) sub(dt / n, fx, fz);
     },
