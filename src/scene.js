@@ -260,16 +260,16 @@ export function buildCup(theme) {
   const jellyMat = new THREE.MeshPhysicalNodeMaterial({
     color: '#fff0ec',
     transmission: 1,
-    roughness: 0.075,
+    roughness: 0.14,
     ior: 1.355,
-    thickness: 0.22,
+    thickness: 0.3,
     attenuationColor: theme.jelly.attenuation,
-    attenuationDistance: 1.1,
+    attenuationDistance: 0.6,
     sheen: 0.21,
     sheenColor: '#ffffff',
   });
   jellyMat.positionNode = wobbleNode(CUP.yC, CUP.yJ, 1);
-  jellyMat.emissiveNode = uniform(new THREE.Color(theme.jelly.glow)).mul(fresnel(1).oneMinus().mul(0.23));
+  jellyMat.emissiveNode = uniform(new THREE.Color(theme.jelly.glow)).mul(fresnel(1).oneMinus().mul(0.32));
   jellyMat.normalNode = normalMap(texture(glassNormals, uv().mul(vec2(2, 1))), vec2(0.25));
   const jelly = new THREE.Mesh(new THREE.LatheGeometry(fillProfile(CUP.yC - 0.004, CUP.yJ, 0.012), 96), jellyMat);
   jelly.renderOrder = 2;
