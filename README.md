@@ -56,3 +56,7 @@ npm install
 npm run dev     # http://localhost:5190
 npm run build   # static site in dist/
 ```
+
+## License
+
+[MIT](LICENSE) for the code in this repo. The original Jelly Painting and its design belong to Mesq.
