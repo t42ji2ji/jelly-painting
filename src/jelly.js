@@ -1,6 +1,7 @@
 // Jelly soft body: a lattice of nodes filling the cup, each holding a displacement from rest. Pure numbers, no
 // three.js. Nodes against the glass and on the bottom are glued (always 0); the rest move under linear elasticity
 //   ü = μ∇²u + (λ+μ)∇(∇·u) − damping·u̇ − (inertia·a_cup + drag·v_cup)
+// (the volume term per lattice cell, as the gradient of its energy, so it stays stable in any cup)
 // so the middle and top of the jelly lag and jiggle while the edges stay put, and squeezing one side lifts it.
 // The scene uploads `field` to a 3D texture for the jelly's vertices; fruit read sample() and spin() at their centre.
 
@@ -23,6 +24,7 @@ export function createJelly(c, p = JELLY) {
   const size = [2 * R, c.yJ - c.BASE, 2 * R];
   const h = [size[0] / p.cells, size[1] / p.layers, size[2] / p.cells];
   const n = nx * ny * nz;
+  const stableDt = (0.4 * Math.min(...h)) / Math.sqrt(p.bulk + 2 * p.stiffness);
   const idx = (i, j, k) => (k * ny + j) * nx + i;
 
   const u = new Float32Array(n * 3);
@@ -39,6 +41,10 @@ export function createJelly(c, p = JELLY) {
   // Above the surface the jelly is free: a missing upper neighbour reads as the node itself (no pull).
   const at = (i, j, k, a) => u[idx(i, Math.min(j, ny - 1), k) * 3 + a];
 
+  // Freedom per node, for the volume term below.
+  const isFree = new Uint8Array(n);
+  for (const id of free) isFree[id] = 1;
+
   function forces(fx, fy, fz) {
     const mu = p.stiffness, lm = p.bulk + p.stiffness;
     const [hx, hy, hz] = h;
@@ -46,30 +52,38 @@ export function createJelly(c, p = JELLY) {
       const i = id % nx, j = Math.floor(id / nx) % ny, k = Math.floor(id / (nx * ny));
       const top = j === ny - 1;
       const o = id * 3;
-      const f = [fx, fy, fz];
       for (let a = 0; a < 3; a++) {
         const c0 = u[o + a];
         const lap =
           (at(i + 1, j, k, a) - 2 * c0 + at(i - 1, j, k, a)) / (hx * hx) +
           (top ? (at(i, j - 1, k, a) - c0) / (hy * hy) : (at(i, j + 1, k, a) - 2 * c0 + at(i, j - 1, k, a)) / (hy * hy)) +
           (at(i, j, k + 1, a) - 2 * c0 + at(i, j, k - 1, a)) / (hz * hz);
-        f[a] += mu * lap;
+        acc[o + a] = (a === 0 ? fx : a === 1 ? fy : fz) + mu * lap - p.damping * v[o + a];
       }
-      // ∇(∇·u): second derivatives of each component along every pair of axes.
-      const dxx = (at(i + 1, j, k, 0) - 2 * u[o] + at(i - 1, j, k, 0)) / (hx * hx);
-      const dyy = top ? (at(i, j - 1, k, 1) - u[o + 1]) / (hy * hy) : (at(i, j + 1, k, 1) - 2 * u[o + 1] + at(i, j - 1, k, 1)) / (hy * hy);
-      const dzz = (at(i, j, k + 1, 2) - 2 * u[o + 2] + at(i, j, k - 1, 2)) / (hz * hz);
-      const cross = (a, di, dj, dk, ei, ej, ek, ha, hb) =>
-        (at(i + di + ei, j + dj + ej, k + dk + ek, a) - at(i + di - ei, j + dj - ej, k + dk - ek, a) -
-          at(i - di + ei, j - dj + ej, k - dk + ek, a) + at(i - di - ei, j - dj - ej, k - dk - ek, a)) / (4 * ha * hb);
-      const xy0 = cross(1, 1, 0, 0, 0, 1, 0, hx, hy), xz0 = cross(2, 1, 0, 0, 0, 0, 1, hx, hz);
-      const yx1 = cross(0, 1, 0, 0, 0, 1, 0, hx, hy), yz1 = cross(2, 0, 1, 0, 0, 0, 1, hy, hz);
-      const zx2 = cross(0, 1, 0, 0, 0, 0, 1, hx, hz), zy2 = cross(1, 0, 1, 0, 0, 0, 1, hy, hz);
-      f[0] += lm * (dxx + xy0 + xz0);
-      f[1] += lm * (yx1 + dyy + yz1);
-      f[2] += lm * (zx2 + zy2 + dzz);
-      for (let a = 0; a < 3; a++) acc[o + a] = f[a] - p.damping * v[o + a];
     }
+    // Volume: each lattice cell resists a change of its volume (∇·u), pushing its corners back. Written as the
+    // gradient of that energy so it can only ever take energy out of the jelly, whatever the cup's shape.
+    const gx = 1 / (4 * hx), gy = 1 / (4 * hy), gz = 1 / (4 * hz);
+    for (let k = 0; k < nz - 1; k++)
+      for (let j = 0; j < ny - 1; j++)
+        for (let i = 0; i < nx - 1; i++) {
+          let div = 0;
+          for (let c8 = 0; c8 < 8; c8++) {
+            const di = c8 & 1, dj = (c8 >> 1) & 1, dk = c8 >> 2;
+            const o = idx(i + di, j + dj, k + dk) * 3;
+            div += u[o] * (di ? gx : -gx) + u[o + 1] * (dj ? gy : -gy) + u[o + 2] * (dk ? gz : -gz);
+          }
+          if (div === 0) continue;
+          const f = -lm * div;
+          for (let c8 = 0; c8 < 8; c8++) {
+            const di = c8 & 1, dj = (c8 >> 1) & 1, dk = c8 >> 2;
+            const id = idx(i + di, j + dj, k + dk);
+            if (!isFree[id]) continue;
+            acc[id * 3] += f * (di ? gx : -gx);
+            acc[id * 3 + 1] += f * (dj ? gy : -gy);
+            acc[id * 3 + 2] += f * (dk ? gz : -gz);
+          }
+        }
   }
 
   function sub(dt, fx, fz) {
@@ -139,8 +153,9 @@ export function createJelly(c, p = JELLY) {
       dt = Math.min(dt, 1 / 20);
       const fx = -(cup.ax * p.inertia + cup.vx * p.drag);
       const fz = -(cup.az * p.inertia + cup.vz * p.drag);
-      const hdt = dt / p.substeps;
-      for (let s = 0; s < p.substeps; s++) sub(hdt, fx, fz);
+      // Explicit steps are only stable below about h / wave speed: a shallow cup (tight layers) or a slow frame takes more.
+      const n = Math.max(p.substeps, Math.ceil(dt / stableDt));
+      for (let s = 0; s < n; s++) sub(dt / n, fx, fz);
     },
     sample,
     spin,

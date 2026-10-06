@@ -13,17 +13,20 @@ import { createJelly } from './jelly.js';
 const EXPOSURE = 0.88;
 
 // Cup geometry derived from a theme's { H, Rb, Rt }: a tapered tumbler, or a coupe (shape 'coupe': a shallow
-// spherical bowl D deep on a thin stem, Rb being the foot).
+// bowl D deep on a thin stem, Rb being the foot). The bowl is half an ellipse centred a little above the rim, so it
+// has a broad round bottom and walls that turn up toward the lip.
 export function cupDims({ shape, H, Rb, Rt, D, flange }, fill, creamHeight = 0) {
   const c = { shape, H, Rb, Rt, flange, T: 0.016, BASE: 0.03 };
   if (shape === 'coupe') {
-    const a = Rt - c.T;
-    c.Rs = (a * a + D * D) / (2 * D); // inner sphere through the rim, D above its lowest point
+    const k = 0.25; // centre above the rim, as a fraction of the vertical semi-axis
+    c.eb = D / (1 - k);
+    c.ea = (Rt - c.T) / Math.sqrt(1 - k * k);
     c.BASE = H - D;
-    c.yc = c.BASE + c.Rs;
-    c.rIn = (y) => Math.sqrt(Math.max(0, c.Rs ** 2 - (c.yc - y) ** 2));
-    c.rOut = (y) => Math.sqrt(Math.max(0, (c.Rs + c.T) ** 2 - (c.yc - y) ** 2));
-    c.rWall = (y) => sqrt(max(float(c.Rs ** 2).sub(float(c.yc).sub(y).pow(2)), 1e-6));
+    c.yc = H + k * c.eb;
+    const ell = (a, b) => (y) => a * Math.sqrt(Math.max(0, 1 - ((c.yc - y) / b) ** 2));
+    c.rIn = ell(c.ea, c.eb);
+    c.rOut = ell(c.ea + c.T, c.eb + c.T);
+    c.rWall = (y) => float(c.ea).mul(sqrt(max(float(1).sub(float(c.yc).sub(y).div(c.eb).pow(2)), 1e-6)));
   } else {
     c.rOut = (y) => Rb + ((Rt - Rb) * y) / H;
     c.rIn = (y) => c.rOut(y) - c.T;
@@ -104,35 +107,31 @@ function cupProfile(c) {
   return pts;
 }
 
-// Coupe: round foot, a thin stem flaring into the underside of the bowl, rolled lip, then the bowl's inside.
+// Coupe: round foot, a thin stem swelling into the underside of the bowl, rolled lip, then the bowl's inside.
 function coupeProfile(c) {
-  const { H, Rb, T, BASE, Rs, yc } = c;
-  const lift = 0.004, foot = 0.018, stem = 0.02, Ro = Rs + T;
+  const { H, Rb, T, ea, eb, yc } = c;
+  const lift = 0.004, foot = 0.018, stem = 0.02, joint = 0.08;
+  const outer = (t) => V((ea + T) * Math.sin(t), yc - (eb + T) * Math.cos(t));
+  const inner = (t) => V(Math.max(ea * Math.sin(t), 0.0001), yc - eb * Math.cos(t));
   const pts = [V(0.0001, lift), V(Rb - foot / 2, lift)];
   arc(pts, Rb - foot / 2, lift + foot / 2, foot / 2, -Math.PI / 2, Math.PI / 2, 6);
   const footTop = lift + foot;
-  const a0 = Math.asin((stem * 1.4) / Ro);
-  const stemTop = yc - Ro * Math.cos(a0);
-  // Foot sloping up into the stem, the stem, and its flare into the bowl.
+  const a0 = Math.asin(joint / (ea + T));
+  const stemTop = outer(a0).y;
+  // Foot sloping up into the stem, the stem, and its swell into the bowl so the bottom doesn't come to a point.
   for (let i = 1; i <= 8; i++) {
     const t = i / 8;
     pts.push(V(stem + (Rb - foot / 2 - stem) * (1 - t) ** 3, footTop + 0.05 * t));
   }
   for (let i = 1; i <= 8; i++) {
     const t = i / 8;
-    pts.push(V(stem * (1 + 0.4 * t ** 4), footTop + 0.05 + (stemTop - footTop - 0.05) * t));
+    pts.push(V(stem + (joint - stem) * t ** 4, footTop + 0.05 + (stemTop - footTop - 0.05) * t));
   }
-  const aRim = Math.acos((yc - (H - T / 2)) / Ro);
-  for (let i = 1; i <= 24; i++) {
-    const a = a0 + ((aRim - a0) * i) / 24;
-    pts.push(V(Ro * Math.sin(a), yc - Ro * Math.cos(a)));
-  }
+  const aRim = Math.acos((yc - (H - T / 2)) / (eb + T));
+  for (let i = 1; i <= 24; i++) pts.push(outer(a0 + ((aRim - a0) * i) / 24));
   arc(pts, c.rOut(H - T / 2) - T / 2, H - T / 2, T / 2 + 0.004, 0, Math.PI, 6);
-  const aIn = Math.acos((yc - (H - T / 2)) / Rs);
-  for (let i = 1; i <= 24; i++) {
-    const a = aIn * (1 - i / 24);
-    pts.push(V(Math.max(Rs * Math.sin(a), 0.0001), yc - Rs * Math.cos(a)));
-  }
+  const aIn = Math.acos((yc - (H - T / 2)) / eb);
+  for (let i = 1; i <= 24; i++) pts.push(inner(aIn * (1 - i / 24)));
   return pts;
 }
 
@@ -283,7 +282,7 @@ function fruitMaterial(type) {
     // Dark berry under a dusty bloom, darker round the crown on top.
     m.colorNode = mix(mix(c1, c2, n(25).mul(0.5).add(0.5).mul(0.55)), c3, smoothstep(0.025, 0.04, p.y));
   } else if (type === 'lemon') {
-    const rr = length(p.xz).div(0.1);
+    const rr = length(p.xz).div(LEMON_R);
     const seg = cos(atan(p.z, p.x).mul(10)).mul(0.5).add(0.5);
     const flesh = mix(c3, c2, smoothstep(0.75, 1, seg).mul(0.8));
     // Pale centre, segments, a white pith ring, then the yellow rind.
@@ -299,6 +298,8 @@ function fruitMaterial(type) {
   m.normalNode = normalMap(texture(painted('fruit', { strokes: 220, angle: 0, jitter: 1.4, width: [4, 14], length: [20, 90], strength: 2.5, seed: 11 })), vec2(0.5));
   return m;
 }
+
+const LEMON_R = 0.14;
 
 // Returns { mesh, radius } in scene units.
 function fruitMesh(type, r, mats) {
@@ -362,13 +363,13 @@ function fruitMesh(type, r, mats) {
     g.add(s);
     radius = 0.048;
   } else if (type === 'ice') {
-    const s = R(r, 0.12, 0.15);
+    const s = R(r, 0.17, 0.21);
     g.add(new THREE.Mesh(roundedBox(s, s * R(r, 0.85, 1), s, s * 0.16), mat));
     radius = s * 0.6;
   } else if (type === 'lemon') {
     // A thin wheel; the rind, pith and segments are painted in fruitMaterial.
-    g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.022, 48), mat));
-    radius = 0.1;
+    g.add(new THREE.Mesh(new THREE.CylinderGeometry(LEMON_R, LEMON_R, 0.026, 48), mat));
+    radius = LEMON_R;
   } else if (type === 'bubble') {
     radius = R(r, 0.016, 0.032);
     g.add(new THREE.Mesh(new THREE.SphereGeometry(radius, 12, 8), mat));
@@ -390,8 +391,8 @@ function placeFruits(c, counts, seed, mats) {
     const fr = piece.radius;
     for (let tries = 0; tries < 600; tries++) {
       const yMin = c.yC + fr * 0.6;
-      // Cherries, raspberries and lemon wheels sit on top, ice floats just under; tapioca pearls sink to the bottom.
-      const top = { cherry: c.yJ + 0.02, raspberry: c.yJ, lemon: c.yJ + 0.005, ice: c.yJ - fr * 0.2 }[piece.type];
+      // Cherries and lemon wheels sit on top, raspberries and ice float just under; tapioca pearls sink to the bottom.
+      const top = { cherry: c.yJ + 0.02, raspberry: c.yJ - fr * 0.9, lemon: c.yJ + 0.005, ice: c.yJ - fr * 0.2 }[piece.type];
       const yMax = top ?? c.yJ - fr * 0.3;
       const y = piece.type === 'lemon' ? yMax : top !== undefined ? yMax - r() * 0.06 : piece.type === 'pearl' ? yMin + r() ** 2 * 0.17 : yMin + r() * (yMax - yMin);
       const a = r() * Math.PI * 2;
