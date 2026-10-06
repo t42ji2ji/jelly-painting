@@ -120,8 +120,8 @@ export async function createStage() {
     if (e.pointerId !== dragging) return;
     dragging = null;
     controls.enabled = true;
-    // Keep it where it was let go (the sim already clamps the range).
-    sim.setTarget(sim.state.cup.x, sim.state.cup.z);
+    // Let go: it springs back to the middle, overshooting a little, and the jelly gets a second wobble.
+    sim.setTarget(0, 0);
   };
   canvas.addEventListener('pointerup', release);
   canvas.addEventListener('pointercancel', release);
