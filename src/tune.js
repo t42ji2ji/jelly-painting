@@ -19,7 +19,7 @@ const PARAMS = {
   Paint: {
     strength: [0, 1, 0.01, 'smear'],
     strokeLength: [0, 40, 0.5, 'stroke length (px)'],
-    speckle: [0, 20, 0.5, 'edge scatter (px)'],
+    speckle: [0, 40, 0.5, 'edge scatter (px)'],
     ribContrast: [0, 0.6, 0.01, 'bristle ribs'],
     bristleScale: [1, 10, 0.1, 'rib size (px)'],
     spacing: [1, 12, 0.5, 'stroke direction blur'],
