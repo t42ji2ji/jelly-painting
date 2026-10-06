@@ -3,6 +3,7 @@
 
 import * as THREE from 'three/webgpu';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { PRESETS } from './presets.js';
 
 const FIT_HEIGHT = 0.6;
 const FIT_WIDTH = 1.0;
@@ -22,11 +23,19 @@ export function createModelMode(stage) {
     stage.frame(height, width, height * 0.45, AZIMUTH);
   }
 
+  function clear() {
+    if (!model) return;
+    holder.remove(model);
+    model.traverse((o) => o.geometry?.dispose());
+    model = null;
+    mixer = null;
+    height = FIT_HEIGHT;
+    width = FIT_WIDTH;
+    stage.table.setShadowVisible(false);
+  }
+
   function setModel(object) {
-    if (model) {
-      holder.remove(model);
-      model.traverse((o) => o.geometry?.dispose());
-    }
+    clear();
     // Fit: stand it on the table, centred, at a size comparable to the cup.
     const box = new THREE.Box3().setFromObject(object);
     const size = box.getSize(new THREE.Vector3());
@@ -55,6 +64,13 @@ export function createModelMode(stage) {
     },
     exit() {
       stage.subject.remove(holder);
+    },
+    clear() {
+      clear();
+      frame();
+    },
+    preset(name) {
+      setModel(PRESETS[name].build());
     },
     async load(file) {
       const result = await gltf.parseAsync(await file.arrayBuffer(), '');

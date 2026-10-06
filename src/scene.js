@@ -222,6 +222,9 @@ function fruitMaterial(type) {
     // Pale flesh blushing to pink, deep red where it sat against the stone.
     const blush = smoothstep(-0.06, 0.06, p.x.add(n(9).mul(0.02)));
     m.colorNode = mix(mix(col('#ffc9a6'), c2, blush), c3, smoothstep(0.035, 0.06, p.y).mul(0.6));
+  } else if (type === 'pearl') {
+    // Tapioca: near-black brown, a little lighter where it's thinner.
+    m.colorNode = mix(c3, c2, n(20).mul(0.5).add(0.5).mul(0.35));
   } else if (type === 'mandarin') {
     const y = p.y.div(0.05);
     const pulp = n(vec3(40, 6, 40)).mul(0.5).add(0.5);
@@ -251,6 +254,11 @@ function fruitMesh(type, r, mats) {
   if (type === 'mandarin') {
     g.add(new THREE.Mesh(crescent(0.15, 0.06, 0.055, 0.06), mat));
     radius = 0.1;
+  } else if (type === 'pearl') {
+    const s = new THREE.Mesh(new THREE.SphereGeometry(0.052, 24, 16), mat);
+    s.scale.set(1, 0.94, 1);
+    g.add(s);
+    radius = 0.052;
   } else if (type === 'shiratama') {
     const s = new THREE.Mesh(new THREE.SphereGeometry(0.085, 32, 24), mat);
     s.scale.set(1, 0.72, 1);
@@ -289,9 +297,12 @@ function placeFruits(c, counts, seed, mats) {
     for (let tries = 0; tries < 600; tries++) {
       const yMin = c.yC + fr * 0.6;
       const yMax = piece.type === 'cherry' ? c.yJ + 0.02 : c.yJ - fr * 0.3;
-      const y = piece.type === 'cherry' ? yMax - r() * 0.06 : yMin + r() * (yMax - yMin);
+      // Cherries float at the top; tapioca pearls sink and pile at the bottom.
+      const y = piece.type === 'cherry' ? yMax - r() * 0.06 : piece.type === 'pearl' ? yMin + r() ** 3 * (yMax - yMin) * 0.6 : yMin + r() * (yMax - yMin);
       const a = r() * Math.PI * 2;
-      const d = Math.sqrt(r()) * Math.max(0, c.rIn(y) - fr * 0.85 - 0.01);
+      // Pearls crowd against the wall (that's what shows through a milky drink); everything else spreads out.
+      const spread = piece.type === 'pearl' ? 0.7 + 0.3 * r() : Math.sqrt(r());
+      const d = spread * Math.max(0, c.rIn(y) - fr * 0.85 - 0.01);
       const x = Math.cos(a) * d, z = Math.sin(a) * d;
       if (placed.every((p) => Math.hypot(p.x - x, p.y - y, p.z - z) > (p.fr + fr) * 0.72)) {
         placed.push({ ...piece, x, y, z, fr });
@@ -315,17 +326,21 @@ export function buildCup(theme) {
 
   // Jelly: transmission, so it refracts the fruit and cream behind it.
   const jellyMat = new THREE.MeshPhysicalNodeMaterial({
-    color: '#fff0ec',
-    transmission: 1,
+    color: theme.jelly.color ?? '#fff0ec',
+    transmission: theme.jelly.transmission ?? 1,
     roughness: 0.14,
     ior: 1.355,
     thickness: 0.3,
     attenuationColor: theme.jelly.attenuation,
-    attenuationDistance: 0.6,
+    attenuationDistance: theme.jelly.distance ?? 0.6,
     sheen: 0.21,
     sheenColor: '#ffffff',
   });
   jellyMat.positionNode = wobbleNode(c, c.yC, c.yJ, 1);
+  if (theme.jelly.clearBottom) {
+    // Milky above, clearer where the pearls have settled, so they show through the wall.
+    jellyMat.transmissionNode = mix(float(theme.jelly.clearBottom), float(theme.jelly.transmission), smoothstep(c.yC + 0.12, c.yC + 0.3, positionLocal.y));
+  }
   jellyMat.emissiveNode = col(theme.jelly.glow).mul(fresnel(1).oneMinus().mul(0.32));
   jellyMat.normalNode = normalMap(texture(glassNormals, uv().mul(vec2(2, 1))), vec2(0.25));
   const jelly = new THREE.Mesh(new THREE.LatheGeometry(fillProfile(c, c.yC - 0.004, c.yJ, 0.012), 96), jellyMat);
@@ -359,6 +374,19 @@ export function buildCup(theme) {
     group.add(f.mesh);
     return f.mesh;
   });
+
+  if (theme.straw) {
+    // A fat bubble-tea straw, leaning against the rim; it rides with the jelly's lag like the fruit.
+    const len = c.H * 1.3;
+    const straw = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.042, len, 24, 1, true), new THREE.MeshPhysicalNodeMaterial({ color: theme.straw, roughness: 0.3, clearcoat: 0.6, side: THREE.DoubleSide }));
+    straw.geometry.translate(0, len / 2, 0);
+    straw.position.set(-c.Rb * 0.35, c.BASE + 0.02, c.Rb * 0.1);
+    straw.rotation.z = -0.24;
+    straw.rotation.x = 0.06;
+    straw.userData.home = { x: straw.position.x, y: straw.position.y, z: straw.position.z, rot: straw.rotation.clone() };
+    group.add(straw);
+    fruits.push(straw);
+  }
 
   // Invisible grab target for dragging the cup.
   const hit = new THREE.Mesh(new THREE.CylinderGeometry(c.Rt + 0.03, c.Rb, c.H + 0.05, 24), new THREE.MeshBasicNodeMaterial({ visible: false }));

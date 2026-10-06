@@ -7,6 +7,7 @@ import { THEMES, PALETTES, backdropAt } from './themes.js';
 import { wobbleU, buildCup, updateFruits } from './scene.js';
 import { createModelMode } from './model.js';
 import { crayonCanvas, plusShape } from './crayon.js';
+import { PRESETS } from './presets.js';
 
 const params = new URLSearchParams(location.search);
 const state = {
@@ -127,7 +128,22 @@ for (const el of document.querySelectorAll('.add')) {
   const c = crayonCanvas(size * 2, plusShape);
   c.style.width = c.style.height = `${size}px`;
   el.prepend(c);
-  el.onclick = () => input.click();
+}
+// Big +: pick a file. Small +: put the model away and go back to the choice (presets or a file).
+document.querySelector('.add.big').onclick = () => input.click();
+document.querySelector('.add.small').onclick = () => {
+  modelMode.clear();
+  sync();
+};
+const presets = document.querySelector('.presets');
+for (const [name, p] of Object.entries(PRESETS)) {
+  const b = document.createElement('button');
+  b.textContent = p.label;
+  b.onclick = () => {
+    modelMode.preset(name);
+    sync();
+  };
+  presets.append(b);
 }
 
 async function load(file) {

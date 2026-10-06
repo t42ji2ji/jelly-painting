@@ -10,7 +10,10 @@
   <body>
     <canvas class="scene" aria-label="A painted dessert cup with a wobbling jelly, or a dropped 3D model. Drag the subject to slide and wobble it, S to shake, drag elsewhere to orbit."></canvas>
     <div class="swatches" aria-label="Backdrop"></div>
-    <button class="add big" aria-label="加入模型"><span>.glb / .gltf</span></button>
+    <div class="pick">
+      <button class="add big" aria-label="加入自己的模型"><span>.glb / .gltf</span></button>
+      <div class="presets"></div>
+    </div>
     <button class="add small" aria-label="換一個模型"></button>
     <input class="file" type="file" accept=".glb,.gltf" hidden />
     <nav class="modes"><button data-mode="cup">果凍杯</button><button data-mode="model">模型</button></nav>

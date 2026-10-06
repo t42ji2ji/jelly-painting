@@ -21,10 +21,13 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 }
 
 /* The + in the middle of an empty model painting, and its small twin in the corner once a model is in. */
-.add { position: fixed; display: none; flex-direction: column; align-items: center; gap: 6px; font: 700 14px/1 cursive; color: #fff3d6; transition: scale 0.2s; }
+.add { display: flex; flex-direction: column; align-items: center; gap: 6px; font: 700 14px/1 cursive; color: #fff3d6; transition: scale 0.2s; }
 .add:hover, body.dragover .add { scale: 1.12; }
-.add.big { left: 50%; top: 50%; transform: translate(-50%, -50%); }
-.add.small { left: calc(50vw + var(--S) / 2 - 50px); top: calc(50vh + var(--S) / 2 - 50px); }
-body[data-mode='model']:not(.has-model) .add.big, body[data-mode='model'].has-model .add.small { display: flex; }
+.pick { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -38%); display: none; flex-direction: column; align-items: center; gap: 22px; }
+.presets { display: flex; gap: 8px 16px; flex-wrap: wrap; justify-content: center; width: calc(var(--S) * 0.8); font: 700 16px/1 cursive; color: #fff3d6; }
+.presets button { padding: 6px 4px; opacity: 0.8; transition: opacity 0.2s, scale 0.2s; }
+.presets button:hover { opacity: 1; scale: 1.1; }
+.add.small { position: fixed; display: none; left: calc(50vw + var(--S) / 2 - 50px); top: calc(50vh + var(--S) / 2 - 50px); }
+body[data-mode='model']:not(.has-model) .pick, body[data-mode='model'].has-model .add.small { display: flex; }
 
 .fail { position: fixed; inset: 0; display: grid; place-items: center; font: 700 19px/1.4 cursive; color: var(--ink); padding: 16px; text-align: center; }

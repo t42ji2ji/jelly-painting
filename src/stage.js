@@ -165,15 +165,15 @@ export async function createStage() {
       update(dt, s);
       // Shake energy for the stars: rises fast with the jelly's motion, fades over about a second.
       const energy = Math.min(1, Math.hypot(s.slosh.vx, s.slosh.vz) * 3 + Math.hypot(s.cup.vx, s.cup.vz) * 0.4);
-      excite += (energy - excite) * (1 - Math.exp(-(energy > excite ? 12 : 1.5) * dt));
+      excite += (energy - excite) * (1 - Math.exp(-(energy > excite ? 3 : 1.2) * dt));
       postU.excite.value = excite;
       controls.update();
       pipeline.render();
       // Let the study paint a while, then sweep the real painting over it.
       frames++;
-      if (revealStart < 0 && frames > 2 && loader.elapsed() > 1.6) revealStart = now;
+      if (revealStart < 0 && frames > 2 && loader.elapsed() > 0.9) revealStart = now;
       if (revealStart >= 0 && postU.reveal.value < 1) {
-        postU.reveal.value = Math.min(1, (now - revealStart) / 1800);
+        postU.reveal.value = Math.min(1, (now - revealStart) / 1100);
         if (postU.reveal.value === 1) loader.remove();
       }
     });

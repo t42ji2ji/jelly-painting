@@ -33,6 +33,21 @@ export const PALETTES = {
     shadow: { color: '#3a9fae', opacity: 0.4, length: 1.3, width: 0.8 },
     light: '#ffe48c',
   },
+  milktea: {
+    label: 'Milk tea',
+    backdrop: {
+      base: '#dfc0ad',
+      glows: [
+        { at: [1, 0], radius: 0.75, color: '#f3e3cf', strength: 0.9 },
+        { at: [0, 0.65], radius: 0.6, color: '#c7a6b6', strength: 0.75 },
+        { at: [0.55, 1.05], radius: 0.5, color: '#c39a86', strength: 0.6 },
+        { at: [0.9, 0.85], radius: 0.4, color: '#e9cdb6', strength: 0.45 },
+      ],
+      noise: 0.03,
+    },
+    shadow: { color: '#946a5c', opacity: 0.45, length: 1.4, width: 0.85 },
+    light: '#ffe6c8',
+  },
   peach: {
     label: 'Peach',
     backdrop: {
@@ -132,6 +147,18 @@ export const THEMES = {
     fruits: { kiwi: 8, pineapple: 6, mango: 6 },
     study: { jelly: '#9cbd55', cream: '#d6c96c', fruit: ['#7fb33a', '#e9c13c', '#f0a23a', '#5f9a30'], glass: '#eef7f2' },
   },
+  boba: {
+    label: 'Boba',
+    palette: 'milktea',
+    cameraAzimuth: 55,
+    cup: { H: 0.8, Rb: 0.29, Rt: 0.39, flange: true },
+    // Milk tea: milky, so a short attenuation distance and a pale body colour; brown-sugar syrup in place of cream.
+    jelly: { attenuation: '#e2b17c', glow: '#d79a5c', fill: 0.86, color: '#efcfa8', distance: 0.5, transmission: 0.45, clearBottom: 0.95 },
+    cream: { color: '#6a3214', shade: '#3a1608', glow: '#9a5420', height: 0.06 },
+    fruits: { pearl: 42 },
+    straw: '#ff9fbd',
+    study: { jelly: '#d7b28e', cream: '#5a2a12', fruit: ['#2a140c', '#3a2010'], glass: '#f5efe8' },
+  },
 };
 
 export const FRUIT_COLORS = {
@@ -142,6 +169,7 @@ export const FRUIT_COLORS = {
   kiwi: { color: '#78be26', color2: '#eef0c4', color3: '#1c180c', sss: '#8ad030', roughness: 0.2 },
   pineapple: { color: '#ffd63a', color2: '#fff09a', color3: '#f0a818', sss: '#ffc000', roughness: 0.36 },
   mango: { color: '#ffb418', color2: '#ffca3c', color3: '#ff900c', sss: '#ff7a00', roughness: 0.32 },
+  pearl: { color: '#2b140b', color2: '#5a2e18', color3: '#1a0a05', sss: '#5a2a10', roughness: 0.12 },
 };
 
 // Backdrop colour at painting coordinates, shared by the table shader (via uniforms) and the loading study.
