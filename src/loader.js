@@ -79,7 +79,7 @@ function layout() {
     c.height = innerHeight * dpr;
     x.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
-  const s = Math.min(innerWidth, innerHeight) * 0.82;
+  const s = Math.min(innerWidth, innerHeight) * 0.62;
   frame = { x: (innerWidth - s) / 2, y: (innerHeight - s) / 2, s };
   // Deckled square, same idea as the post-processing frame.
   edge = [];

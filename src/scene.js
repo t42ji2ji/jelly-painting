@@ -219,12 +219,15 @@ function fruitMesh(type, r) {
   return g;
 }
 
+const FRUIT_SCALE = 1.45;
+
 function placeFruits(types, seed) {
   const r = rng(seed);
   const placed = [];
   const radius = { cherry: 0.075, mandarin: 0.09, peach: 0.11, shiratama: 0.07, kiwi: 0.085, pineapple: 0.07, mango: 0.065 };
-  for (const type of types) {
-    const fr = radius[type];
+  // Big pieces first so the small ones fill the gaps.
+  for (const type of [...types].sort((a, b) => radius[b] - radius[a])) {
+    const fr = radius[type] * FRUIT_SCALE;
     for (let tries = 0; tries < 400; tries++) {
       // Cherries ride the surface, the rest settle through the jelly.
       const yMin = CUP.yC + fr * 0.8;
@@ -233,7 +236,7 @@ function placeFruits(types, seed) {
       const a = r() * Math.PI * 2;
       const d = Math.sqrt(r()) * (rIn(y) - fr - 0.01);
       const x = Math.cos(a) * d, z = Math.sin(a) * d;
-      if (placed.every((p) => Math.hypot(p.x - x, p.y - y, p.z - z) > (p.fr + fr) * 0.95)) {
+      if (placed.every((p) => Math.hypot(p.x - x, p.y - y, p.z - z) > (p.fr + fr) * 0.75)) {
         placed.push({ type, x, y, z, fr });
         break;
       }
@@ -299,6 +302,7 @@ export function buildCup(theme) {
 
   const fruits = placeFruits(theme.fruits, theme.label === 'Cherry' ? 4 : 7).map((f) => {
     const mesh = fruitMesh(f.type, rng(Math.floor(f.x * 1e4) ^ 99));
+    mesh.scale.setScalar(FRUIT_SCALE);
     mesh.position.set(f.x, f.y, f.z);
     mesh.userData.home = { x: f.x, y: f.y, z: f.z, rot: mesh.rotation.clone() };
     group.add(mesh);
