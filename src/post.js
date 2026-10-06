@@ -6,7 +6,7 @@
 import * as THREE from 'three/webgpu';
 import {
   pass, rtt, Fn, vec2, vec3, vec4, float, uniform, screenUV, screenSize, screenCoordinate,
-  mix, smoothstep, fract, dot, sqrt, max, min, abs, length, mx_noise_float, mx_fractal_noise_float, select, renderOutput, time, sin, exp,
+  mix, smoothstep, fract, dot, sqrt, max, min, abs, length, mx_noise_float, mx_fractal_noise_float, select, renderOutput, time, sin,
 } from 'three/tsl';
 
 export const postU = {
@@ -129,20 +129,22 @@ export function createPost(renderer, scene, camera) {
     const thin = smoothstep(edgeW.mul(-5), 0, d).mul(0.25);
     const mask = smoothstep(edgeW, edgeW.negate(), d.add(n4.sub(0.5).mul(edgeW).mul(2.4))).mul(float(1).sub(thin));
 
-    // Four-point sparkles scattered over the painting, twinkling slowly.
-    const fq = q.div(half.x.mul(2)); // painting units, side = 1
-    const cells = float(11);
-    const cell = fq.mul(cells).floor();
-    const cr = ign(cell.mul(13.7).add(5));
-    const cr2 = ign(cell.mul(7.1).add(11));
-    const center = cell.add(vec2(cr2, ign(cell.mul(3.3).add(2))).mul(0.5).add(0.25)).div(cells);
-    const o = fq.sub(center);
-    const size = cr2.mul(0.012).add(0.008);
-    const arm = (a, b) => exp(abs(b).div(size.mul(0.07)).negate()).mul(float(1).sub(abs(a).div(size)).clamp(0, 1).pow(2));
-    const twinkle = sin(time.mul(1.7).add(cr.mul(40))).mul(0.35).add(0.75);
-    const star = arm(o.x, o.y).add(arm(o.y, o.x)).add(exp(length(o).div(size.mul(0.12)).negate()))
-      .mul(cr.greaterThan(0.86).select(1, 0)).mul(twinkle).clamp(0, 1);
-    col = mix(col, vec3(1, 0.97, 0.9), star.mul(0.9));
+    // A few crayon four-point stars on the background, same shape as the cursor; kept clear of the subject.
+    const fq = q.div(half.x.mul(2)); // painting units, side = 1, centred
+    const cells = float(5);
+    const cell = fq.add(0.5).mul(cells).floor();
+    const cr = fract(sin(dot(cell, vec2(41.3, 289.1))).mul(43758.5453));
+    const cr2 = fract(sin(dot(cell, vec2(127.1, 311.7))).mul(43758.5453));
+    const cr3 = fract(sin(dot(cell, vec2(269.5, 183.3))).mul(43758.5453));
+    const center = cell.add(vec2(cr2, cr3).mul(0.5).add(0.25)).div(cells).sub(0.5);
+    const size = cr3.mul(0.018).add(0.02);
+    const twinkle = sin(time.mul(1.3).add(cr.mul(40))).mul(0.12).add(1);
+    const o = fq.sub(center).div(size.mul(twinkle));
+    const f = sqrt(abs(o.x).div(0.92)).add(sqrt(abs(o.y).div(0.92)));
+    const ragged = float(1).sub(n4.sub(0.5).mul(0.3));
+    const placed = cr.greaterThan(0.72).and(length(center).greaterThan(0.36));
+    const star = select(placed, float(1), float(0)).mul(f.lessThan(ragged).select(n2.greaterThan(0.12).select(1, 0.5), 0));
+    col = mix(col, vec3(1, 0.96, 0.87), star.mul(0.92));
 
     const paper = vec3(postU.paper).add(n3.sub(0.5).mul(0.02));
 
