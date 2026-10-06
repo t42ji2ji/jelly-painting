@@ -2,7 +2,7 @@
 
 A painted dessert cup with a wobbling jelly, rendered live in the browser with three.js (WebGPU + TSL). Drag the cup and the jelly sloshes, the fruit inside bobs and turns, and the whole thing is redrawn as brush strokes on paper every frame.
 
-**Live:** https://jelly-painting.pages.dev/
+**Live:** https://jelly.dorara.app/
 
 <p>
   <img src="docs/boba.gif" width="32%" alt="Boba: a milk tea cup flicked sideways; the straw tips and the pearls sway">
