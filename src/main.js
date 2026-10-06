@@ -172,3 +172,6 @@ addEventListener('drop', (e) => {
 
 setMode(state.mode);
 stage.run((dt, s) => current.update(dt, s));
+
+// Local development only: a panel for the painting's texture and grain.
+if (location.hostname === 'localhost') import('./tune.js').then((m) => m.createTuner(stage));

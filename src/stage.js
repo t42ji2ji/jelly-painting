@@ -76,7 +76,8 @@ export async function createStage() {
     },
   };
 
-  const { pipeline } = createPost(renderer, scene, camera);
+  const { pipeline, bristles } = createPost(renderer, scene, camera);
+  stage.bristles = bristles; // the tuning panel re-renders it when the rib size changes
   postU.reveal.value = 0;
 
   addEventListener('resize', () => {
