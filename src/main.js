@@ -5,10 +5,11 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { createSim } from './sim.js';
 import { THEMES } from './themes.js';
 import { wobbleU, buildCup, updateFruits, buildTable, setTableTheme, tableU } from './scene.js';
-import { createPost } from './post.js';
+import { createPost, postU } from './post.js';
+import { loader } from './loader.js';
 
-const canvas = document.querySelector('canvas');
-const renderer = new THREE.WebGPURenderer({ canvas, antialias: true });
+const canvas = document.querySelector('canvas.scene');
+const renderer = new THREE.WebGPURenderer({ canvas, antialias: true, alpha: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
 renderer.setSize(innerWidth, innerHeight);
 renderer.toneMapping = THREE.NeutralToneMapping;
@@ -87,6 +88,10 @@ for (const name of themeNames) {
 applyTheme(themeName);
 
 const { pipeline } = createPost(renderer, scene, camera);
+postU.reveal.value = 0;
+await renderer.compileAsync(scene, camera);
+let frames = 0;
+let revealStart = -1;
 
 // Dragging the cup: grab it, slide it across the table plane; elsewhere the orbit controls take over.
 const ray = new THREE.Raycaster();
@@ -175,6 +180,14 @@ renderer.setAnimationLoop((now) => {
   updateFruits(cup.fruits, s);
   controls.update();
   pipeline.render();
+
+  // Let the study paint a while, then sweep the real painting over it.
+  frames++;
+  if (revealStart < 0 && frames > 2 && loader.elapsed() > 1.6) revealStart = now;
+  if (revealStart >= 0 && postU.reveal.value < 1) {
+    postU.reveal.value = Math.min(1, (now - revealStart) / 1800);
+    if (postU.reveal.value === 1) loader.remove();
+  }
 });
 
 document.documentElement.dataset.state = 'ready';

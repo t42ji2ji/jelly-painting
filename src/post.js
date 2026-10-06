@@ -19,6 +19,7 @@ export const postU = {
   paper: uniform(new THREE.Color('#f7f5f0').convertLinearToSRGB()), // display-space, the frame is composited after tone mapping
   frameSize: uniform(0.82), // painting side as a fraction of the shorter screen side
   strength: uniform(1),
+  reveal: uniform(1), // 0 → 1: brush strokes lay the painting over the loading study
 };
 
 const STEPS = 8;
@@ -130,7 +131,17 @@ export function createPost(renderer, scene, camera) {
     const mask = smoothstep(px.mul(1.5), px.mul(-1.5), d).mul(float(1).sub(thin));
 
     const paper = vec3(postU.paper).add(n3.sub(0.5).mul(0.02));
-    return vec4(mix(paper, col, mask), 1);
+
+    // Reveal: horizontal bands of paint sweeping across, each band with its own start and ragged bristle tip.
+    const sp = screenUV.mul(screenSize).div(screenSize.y);
+    const band = sp.y.mul(14).add(mx_noise_float(vec3(sp.mul(vec2(2, 0.5)), 21)).mul(0.6)).floor();
+    const bandRand = ign(vec2(band, 3).mul(7.31));
+    const dirFlip = bandRand.greaterThan(0.5);
+    const along = select(dirFlip, sp.x.div(aspect), float(1).sub(sp.x.div(aspect)));
+    const tip = mx_noise_float(vec3(sp.x.mul(3), sp.y.mul(90), 23)).mul(0.06);
+    const front = postU.reveal.mul(1.9).sub(bandRand.mul(0.8));
+    const alpha = smoothstep(front, front.sub(0.04), along.add(tip));
+    return vec4(mix(paper, col, mask).mul(alpha), alpha);
   });
 
   const pipeline = new THREE.RenderPipeline(renderer, paint());

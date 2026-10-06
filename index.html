@@ -7,7 +7,8 @@
     <title>Jelly Painting</title>
     <style>
       html, body { margin: 0; height: 100%; background: #f7f5f0; overflow: hidden; }
-      canvas { display: block; width: 100vw; height: 100vh; touch-action: none; }
+      canvas { position: fixed; inset: 0; display: block; width: 100vw; height: 100vh; touch-action: none; }
+      canvas.loader { pointer-events: none; }
       body.can-grab canvas { cursor: grab; }
       body.grabbing canvas { cursor: grabbing; }
       .themes { position: fixed; left: 50%; bottom: max(6px, env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; gap: 18px; }
@@ -17,9 +18,10 @@
     </style>
   </head>
   <body>
-    <canvas aria-label="A painted dessert cup with a wobbling jelly. Drag the cup to slide it, S to shake, drag elsewhere to orbit."></canvas>
+    <canvas class="scene" aria-label="A painted dessert cup with a wobbling jelly. Drag the cup to slide it, S to shake, drag elsewhere to orbit."></canvas>
     <nav class="themes" aria-label="Theme"></nav>
     <script type="module">
+      import '/src/loader.js';
       import('/src/main.js').catch((e) => {
         console.error(e);
         document.body.insertAdjacentHTML('beforeend', '<div class="fail">這個瀏覽器跑不起 WebGPU 場景。</div>');
