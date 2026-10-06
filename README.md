@@ -5,9 +5,13 @@ A painted dessert cup with a wobbling jelly, rendered live in the browser with t
 **Live:** https://jelly-painting.pages.dev/
 
 <p>
-  <img src="docs/cherry.jpg" width="32%" alt="Cherry: a wide glass cup of pink jelly with cherries and diced fruit, painted on a blue backdrop">
-  <img src="docs/kiwi.jpg" width="32%" alt="Kiwi: a tall cup of green jelly with kiwi, pineapple and mango, on a teal backdrop">
-  <img src="docs/boba.jpg" width="32%" alt="Boba: a milk tea cup with a pink straw and tapioca pearls, on a beige backdrop">
+  <img src="docs/boba.gif" width="32%" alt="Boba: a milk tea cup flicked sideways; the straw tips and the pearls sway">
+  <img src="docs/cherry.gif" width="32%" alt="Cherry: a wide cup of pink jelly flicked sideways; the cherries and diced fruit bob and turn">
+  <img src="docs/kiwi.gif" width="32%" alt="Kiwi: a tall cup of green jelly with kiwi, pineapple and mango wobbling after a flick">
+</p>
+<p>
+  <img src="docs/coupe.gif" width="32%" alt="Coupe: a coupe glass of raspberry jelly over panna cotta, berries wobbling">
+  <img src="docs/soda.gif" width="32%" alt="Soda: a tall glass of blue soda with ice, lemon wheels and bubbles swaying">
 </p>
 
 ## Credit
@@ -26,6 +30,8 @@ The code here is written from scratch. None of the original's code, models or te
 | Drag elsewhere | orbit the view; scroll or pinch to zoom |
 | Swatches | switch cup: Cherry, Kiwi, Boba, Coupe, Soda |
 | **Model** tab | put any `.glb` on the painted stage (drag a file in, or pick a preset: pudding, doughnut, macaron, teapot, jelly tower) and wobble that instead |
+
+<img src="docs/jelly-tower.gif" width="32%" alt="Model mode: a three-tier jelly tower on a plate, wobbling as a whole">
 
 Links: `?theme=cherry|kiwi|boba|coupe|soda`, `?mode=model&palette=lilac|peach|butter|seaglass|night|…`
 
