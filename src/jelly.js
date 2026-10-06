@@ -8,11 +8,11 @@
 export const JELLY = {
   cells: 8, // lattice intervals across the cup
   layers: 6, // intervals from the bottom to the jelly surface
-  stiffness: 3.2, // μ: shear wave speed², sets how fast it jiggles
+  stiffness: 3.1, // μ: shear wave speed², sets how fast it jiggles
   bulk: 6, // λ: resistance to squeezing; what makes the far side rise
-  damping: 4, // 1/s; low enough that a flick keeps it jiggling for a second or two
-  inertia: 0.35, // how hard the cup's acceleration throws the jelly
-  drag: 0.9, // and its velocity: the jelly also trails a moving cup like syrup
+  damping: 7, // 1/s; a flick keeps it jiggling for about a second
+  inertia: 0.38, // how hard the cup's acceleration throws the jelly
+  drag: 0.4, // and its velocity: the jelly also trails a moving cup like syrup
   maxDisplacement: 0.14,
   substeps: 8,
 };

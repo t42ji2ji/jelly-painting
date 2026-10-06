@@ -8,7 +8,7 @@ export const SIM = {
   maxSpeed: 12,
   maxAccel: 300,
   returnDamping: 0.55,
-  homeFrequency: 2.4, // Hz, the slower, heavier pull back to the middle once let go
+  homeFrequency: 3.6, // Hz, the slower, heavier pull back to the middle once let go
   homeDamping: 0.9,
   jellyFrequency: 0.9,
   jellyDamping: 1.3,
