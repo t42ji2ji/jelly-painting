@@ -10,7 +10,8 @@ const star = (px) => crayonCanvas(px, starShape).toDataURL();
 // the hotspot in the 2x image's pixels, so the click point sat ~9 px up-left of the star's centre.)
 function rule(size) {
   const h = size / 2;
-  return `cursor: url(${star(size)}) ${h} ${h}, auto;`;
+  // !important: OrbitControls writes an inline `cursor: auto` on the canvas, which would beat a normal rule.
+  return `cursor: url(${star(size)}) ${h} ${h}, auto !important;`;
 }
 
 const style = document.createElement('style');
