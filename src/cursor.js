@@ -18,7 +18,7 @@ const style = document.createElement('style');
 const rest = rule(32), big = rule(40), small = rule(28);
 style.textContent = `
 html, html * { ${rest} }
-html.grab, html.grab *, button:hover, label:hover, .swatch:hover { ${big} }
+html.grab, html.grab *, button:hover, a:hover, label:hover, .swatch:hover { ${big} }
 html.press, html.press * { ${small} }
 `;
 document.head.append(style);

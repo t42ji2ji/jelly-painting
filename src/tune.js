@@ -60,6 +60,7 @@ export function createTuner(stage) {
   };
 
   const gui = new GUI({ title: 'Painting' });
+  gui.domElement.style.top = '52px'; // below the GitHub link
   for (const [name, group] of Object.entries(PARAMS)) {
     const folder = gui.addFolder(name);
     for (const [k, [min, max, step, label]] of Object.entries(group)) {

@@ -8,6 +8,8 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .modes { position: fixed; left: 50%; bottom: max(8px, env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; gap: 22px; font: 700 17px/1 cursive; color: var(--ink); }
 .modes button { padding: 6px 4px; opacity: 0.5; transition: opacity 0.2s; }
 .modes button:hover, .modes button[aria-pressed='true'] { opacity: 1; }
+.source { position: fixed; top: max(14px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right)); color: var(--ink); opacity: 0.55; transition: opacity 0.2s; }
+.source:hover { opacity: 1; }
 
 /* Backdrop swatches beside the painting, bottom-aligned with it like the original's minis. */
 .swatches { position: fixed; right: calc(50vw + var(--S) / 2 + 22px); bottom: calc(50vh - var(--S) / 2); display: flex; flex-direction: column-reverse; flex-wrap: wrap-reverse; gap: 8px; max-height: var(--S); }
