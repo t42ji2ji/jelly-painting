@@ -17,7 +17,7 @@ export const postU = {
   speckle: uniform(5), // px of fixed scatter at the stroke start
   grain: uniform(0.05),
   paper: uniform(new THREE.Color('#f7f5f0').convertLinearToSRGB()), // display-space, the frame is composited after tone mapping
-  margin: uniform(0.06), // fraction of screen height
+  frameSize: uniform(0.82), // painting side as a fraction of the shorter screen side
   strength: uniform(1),
 };
 
@@ -114,8 +114,8 @@ export function createPost(renderer, scene, camera) {
     // 3. Deckled frame.
     const aspect = screenSize.x.div(screenSize.y);
     const q = screenUV.sub(0.5).mul(vec2(aspect, 1));
-    const half = vec2(aspect.mul(0.5), 0.5).sub(postU.margin);
-    const rad = float(0.035);
+    const half = vec2(min(aspect, 1).mul(postU.frameSize).mul(0.5));
+    const rad = float(0.05);
     const dq = abs(q).sub(half).add(rad);
     const sd = length(max(dq, 0)).add(min(max(dq.x, dq.y), 0)).sub(rad);
     // Edge wobble plus bristle streaks running out of the painting, perpendicular to the nearest edge.

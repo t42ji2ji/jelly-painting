@@ -71,7 +71,7 @@ function applyTheme(name) {
   cup = buildCup(t);
   cupRoot.add(cup.group);
   const az = name === 'cherry' ? 113.5 : -23.5;
-  camera.position.copy(target).add(sph(az, 32.5, 2.25));
+  camera.position.copy(target).add(sph(az, 32.5, 3.1));
   controls.update();
   for (const b of document.querySelectorAll('.themes button')) b.setAttribute('aria-pressed', b.dataset.theme === name);
 }
