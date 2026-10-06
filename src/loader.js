@@ -48,9 +48,11 @@ for (let i = 0; i < 30; i++) {
 
 if (withCup) {
   // Cup silhouette in painting units, per theme proportions.
-  const tall = theme.cup.H > 0.6;
-  const top = tall ? 0.27 : 0.33, bottom = tall ? 0.76 : 0.72;
-  const wTop = tall ? 0.42 : 0.6, wBot = tall ? 0.28 : 0.44;
+  const coupe = theme.cup.shape === 'coupe';
+  const tall = !coupe && theme.cup.H > 0.6;
+  // A coupe's bowl sits high on its stem: draw the bowl here, the stem and foot below.
+  const top = coupe ? 0.34 : tall ? 0.27 : 0.33, bottom = coupe ? 0.52 : tall ? 0.76 : 0.72;
+  const wTop = coupe ? 0.72 : tall ? 0.42 : 0.6, wBot = coupe ? 0.14 : tall ? 0.28 : 0.44;
   const halfW = (y) => (wTop + (wBot - wTop) * ((y - top) / (bottom - top))) / 2;
   const sd = tall ? 1 : -1; // shadow falls right for Kiwi, left for Cherry
   const sc = backdropAt(palette.backdrop, 0.5 + sd * 0.25, 0.8);
@@ -76,6 +78,10 @@ if (withCup) {
   add(0.5 - wTop / 2 + 0.01, top + 0.01, 0.5 - wBot / 2, bottom, 0.014, study.glass, 0.12, 0.6, 0);
   add(0.5 + wTop / 2 - 0.01, top + 0.01, 0.5 + wBot / 2, bottom, 0.014, study.glass, 0.12, 0.6, 0);
   add(0.5 - wTop / 2 + 0.07, top + 0.05, 0.5 - wBot / 2 + 0.06, bottom - 0.04, 0.01, '#ffffff', 0.1, 0.7, 0);
+  if (coupe) {
+    add(0.5, bottom, 0.5, 0.74, 0.012, study.glass, 0.12, 0.7, 0);
+    add(0.38, 0.75, 0.62, 0.75, 0.016, study.glass, 0.12, 0.7, 0.02);
+  }
 }
 
 const start = performance.now();

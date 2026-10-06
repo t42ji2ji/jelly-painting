@@ -159,6 +159,26 @@ export const THEMES = {
     straw: '#ff9fbd',
     study: { jelly: '#d7b28e', cream: '#5a2a12', fruit: ['#2a140c', '#3a2010'], glass: '#f5efe8' },
   },
+  coupe: {
+    label: 'Coupe',
+    palette: 'peach',
+    cameraAzimuth: 70,
+    cup: { shape: 'coupe', H: 0.62, Rb: 0.24, Rt: 0.56, D: 0.22 },
+    jelly: { attenuation: '#ff8fb4', glow: '#ff5f8a', fill: 0.88 },
+    cream: { color: '#fff4e6', shade: '#f0d6c2', glow: '#ffcdb8', height: 0.38 },
+    fruits: { raspberry: 7, blueberry: 10 },
+    study: { jelly: '#f2a9bd', cream: '#fbeee2', fruit: ['#d81f4a', '#3b4c8f', '#ff6f8f'], glass: '#f7f1ee' },
+  },
+  soda: {
+    label: 'Soda',
+    palette: 'seaglass',
+    cameraAzimuth: 20,
+    cup: { H: 0.86, Rb: 0.29, Rt: 0.33, flange: false },
+    jelly: { attenuation: '#7fd6ff', glow: '#2aa8ff', fill: 0.84, color: '#f2fbff', distance: 1.4 },
+    fruits: { ice: 5, lemon: 2, bubble: 40 },
+    straw: '#ff8fa3',
+    study: { jelly: '#9fdcf0', cream: '#9fdcf0', fruit: ['#f4fbff', '#ffe14a', '#ffffff'], glass: '#eef8fb' },
+  },
 };
 
 export const FRUIT_COLORS = {
@@ -170,6 +190,11 @@ export const FRUIT_COLORS = {
   pineapple: { color: '#ffd63a', color2: '#fff09a', color3: '#f0a818', sss: '#ffc000', roughness: 0.36 },
   mango: { color: '#ffb418', color2: '#ffca3c', color3: '#ff900c', sss: '#ff7a00', roughness: 0.32 },
   pearl: { color: '#2b140b', color2: '#5a2e18', color3: '#1a0a05', sss: '#5a2a10', roughness: 0.12 },
+  raspberry: { color: '#d81f4a', color2: '#ff6f8f', color3: '#8f0f2a', sss: '#ff2050', roughness: 0.3 },
+  blueberry: { color: '#3b4c8f', color2: '#8797c8', color3: '#1e2550', sss: '#4a5aa0', roughness: 0.45 },
+  ice: { color: '#f4fbff', color2: '#ffffff', color3: '#c4e6f7', sss: '#d8f3ff', roughness: 0.05 },
+  lemon: { color: '#ffd92e', color2: '#fffbe8', color3: '#fff07a', sss: '#ffd000', roughness: 0.25 },
+  bubble: { color: '#ffffff', color2: '#ffffff', color3: '#e0f6ff', sss: '#ffffff', roughness: 0.02 },
 };
 
 // Backdrop colour at painting coordinates, shared by the table shader (via uniforms) and the loading study.

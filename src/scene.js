@@ -2,7 +2,7 @@
 
 import * as THREE from 'three/webgpu';
 import {
-  Fn, uniform, vec2, vec3, float, mix, smoothstep, clamp, cos, max, positionLocal, positionWorld, normalView,
+  Fn, uniform, vec2, vec3, float, mix, smoothstep, clamp, cos, max, sqrt, atan, positionLocal, positionWorld, normalView,
   positionViewDirection, normalMap, texture, texture3D, mx_fractal_noise_float, mx_noise_float, uv, length, dot, screenUV, screenSize, min,
 } from 'three/tsl';
 import { paintNormalMap, rng } from './paint.js';
@@ -12,13 +12,25 @@ import { createJelly } from './jelly.js';
 
 const EXPOSURE = 0.88;
 
-// Cup geometry derived from a theme's { H, Rb, Rt }.
-export function cupDims({ H, Rb, Rt, flange }, fill, creamHeight) {
-  const c = { H, Rb, Rt, flange, T: 0.016, BASE: 0.03 };
+// Cup geometry derived from a theme's { H, Rb, Rt }: a tapered tumbler, or a coupe (shape 'coupe': a shallow
+// spherical bowl D deep on a thin stem, Rb being the foot).
+export function cupDims({ shape, H, Rb, Rt, D, flange }, fill, creamHeight = 0) {
+  const c = { shape, H, Rb, Rt, flange, T: 0.016, BASE: 0.03 };
+  if (shape === 'coupe') {
+    const a = Rt - c.T;
+    c.Rs = (a * a + D * D) / (2 * D); // inner sphere through the rim, D above its lowest point
+    c.BASE = H - D;
+    c.yc = c.BASE + c.Rs;
+    c.rIn = (y) => Math.sqrt(Math.max(0, c.Rs ** 2 - (c.yc - y) ** 2));
+    c.rOut = (y) => Math.sqrt(Math.max(0, (c.Rs + c.T) ** 2 - (c.yc - y) ** 2));
+    c.rWall = (y) => sqrt(max(float(c.Rs ** 2).sub(float(c.yc).sub(y).pow(2)), 1e-6));
+  } else {
+    c.rOut = (y) => Rb + ((Rt - Rb) * y) / H;
+    c.rIn = (y) => c.rOut(y) - c.T;
+    c.rWall = (y) => float(Rb - c.T).add(y.mul((Rt - Rb) / H));
+  }
   c.yJ = c.BASE + fill * (H - c.BASE);
   c.yC = c.BASE + creamHeight * (c.yJ - c.BASE);
-  c.rOut = (y) => Rb + ((Rt - Rb) * y) / H;
-  c.rIn = (y) => c.rOut(y) - c.T;
   return c;
 }
 
@@ -50,8 +62,7 @@ const warpNode = (c, body, tex, gain) =>
     const { n, min: lo, size } = body.grid;
     const uvw = p.sub(vec3(...lo)).div(vec3(...size)).mul(vec3(...n.map((k) => (k - 1) / k))).add(vec3(...n.map((k) => 0.5 / k)));
     const u = texture3D(tex, uvw).xyz.mul(gain);
-    const rWall = float(c.Rb - c.T).add(p.y.mul((c.Rt - c.Rb) / c.H));
-    const rad = clamp(length(p.xz).div(rWall), 0, 1);
+    const rad = clamp(length(p.xz).div(c.rWall(p.y)), 0, 1);
     const side = float(1).sub(rad.pow(4));
     return vec3(p.x.add(u.x.mul(side)), p.y.add(u.y), p.z.add(u.z.mul(side)));
   })();
@@ -93,14 +104,46 @@ function cupProfile(c) {
   return pts;
 }
 
+// Coupe: round foot, a thin stem flaring into the underside of the bowl, rolled lip, then the bowl's inside.
+function coupeProfile(c) {
+  const { H, Rb, T, BASE, Rs, yc } = c;
+  const lift = 0.004, foot = 0.018, stem = 0.02, Ro = Rs + T;
+  const pts = [V(0.0001, lift), V(Rb - foot / 2, lift)];
+  arc(pts, Rb - foot / 2, lift + foot / 2, foot / 2, -Math.PI / 2, Math.PI / 2, 6);
+  const footTop = lift + foot;
+  const a0 = Math.asin((stem * 1.4) / Ro);
+  const stemTop = yc - Ro * Math.cos(a0);
+  // Foot sloping up into the stem, the stem, and its flare into the bowl.
+  for (let i = 1; i <= 8; i++) {
+    const t = i / 8;
+    pts.push(V(stem + (Rb - foot / 2 - stem) * (1 - t) ** 3, footTop + 0.05 * t));
+  }
+  for (let i = 1; i <= 8; i++) {
+    const t = i / 8;
+    pts.push(V(stem * (1 + 0.4 * t ** 4), footTop + 0.05 + (stemTop - footTop - 0.05) * t));
+  }
+  const aRim = Math.acos((yc - (H - T / 2)) / Ro);
+  for (let i = 1; i <= 24; i++) {
+    const a = a0 + ((aRim - a0) * i) / 24;
+    pts.push(V(Ro * Math.sin(a), yc - Ro * Math.cos(a)));
+  }
+  arc(pts, c.rOut(H - T / 2) - T / 2, H - T / 2, T / 2 + 0.004, 0, Math.PI, 6);
+  const aIn = Math.acos((yc - (H - T / 2)) / Rs);
+  for (let i = 1; i <= 24; i++) {
+    const a = aIn * (1 - i / 24);
+    pts.push(V(Math.max(Rs * Math.sin(a), 0.0001), yc - Rs * Math.cos(a)));
+  }
+  return pts;
+}
+
 // A column hugging the inner wall: flat bottom, wall, then a top surface with a meniscus at the glass.
 function fillProfile(c, y0, y1, meniscus) {
   const e = 0.004;
   const pts = [];
-  for (let i = 0; i <= 10; i++) pts.push(V(0.0001 + ((c.rIn(y0) - e) * i) / 10, y0));
+  for (let i = 0; i <= 10; i++) pts.push(V(0.0001 + (Math.max(c.rIn(y0) - e, 0) * i) / 10, y0));
   for (let i = 1; i <= 10; i++) {
     const y = y0 + ((y1 - y0) * i) / 10;
-    pts.push(V(c.rIn(y) - e, y + (i === 10 ? meniscus : 0)));
+    pts.push(V(Math.max(c.rIn(y) - e, 0.0001), y + (i === 10 ? meniscus : 0)));
   }
   for (let i = 1; i <= 16; i++) {
     const r = (c.rIn(y1) - e) * (1 - i / 16);
@@ -234,10 +277,25 @@ function fruitMaterial(type) {
     const y = p.y.div(0.05);
     const pulp = n(vec3(40, 6, 40)).mul(0.5).add(0.5);
     m.colorNode = mix(c2, mix(c1, c3, pulp.mul(0.5)), smoothstep(-1.2, 0.4, y));
+  } else if (type === 'raspberry') {
+    m.colorNode = mix(c3, mix(c1, c2, n(30).mul(0.5).add(0.5).mul(0.5)), smoothstep(-0.06, 0.03, p.y));
+  } else if (type === 'blueberry') {
+    // Dark berry under a dusty bloom, darker round the crown on top.
+    m.colorNode = mix(mix(c1, c2, n(25).mul(0.5).add(0.5).mul(0.55)), c3, smoothstep(0.025, 0.04, p.y));
+  } else if (type === 'lemon') {
+    const rr = length(p.xz).div(0.1);
+    const seg = cos(atan(p.z, p.x).mul(10)).mul(0.5).add(0.5);
+    const flesh = mix(c3, c2, smoothstep(0.75, 1, seg).mul(0.8));
+    // Pale centre, segments, a white pith ring, then the yellow rind.
+    const inner = mix(mix(c2, flesh, smoothstep(0.08, 0.14, rr)), c2, smoothstep(0.8, 0.84, rr));
+    m.colorNode = mix(inner, c1, smoothstep(0.9, 0.94, rr));
+  } else if (type === 'ice') {
+    m.colorNode = mix(c3, c1, n(8).mul(0.5).add(0.5));
   } else {
     m.colorNode = c1;
   }
   m.emissiveNode = col(c.sss).mul(fresnel(1.5).oneMinus().mul(0.16));
+  if (type === 'ice' || type === 'bubble') m.emissiveNode = col(c.sss).mul(fresnel(2).mul(type === 'bubble' ? 0.9 : 0.5));
   m.normalNode = normalMap(texture(painted('fruit', { strokes: 220, angle: 0, jitter: 1.4, width: [4, 14], length: [20, 90], strength: 2.5, seed: 11 })), vec2(0.5));
   return m;
 }
@@ -285,8 +343,39 @@ function fruitMesh(type, r, mats) {
     const w = R(r, 0.13, 0.17), h = R(r, 0.08, 0.1), d = R(r, 0.11, 0.14);
     g.add(new THREE.Mesh(chunk(r, w, h, d, { taper: 0.25 }), mat));
     radius = Math.max(w, h, d) * 0.45;
+  } else if (type === 'raspberry') {
+    // Drupelets: a slightly tall sphere covered in round bumps.
+    const geo = new THREE.SphereGeometry(0.06, 32, 24);
+    const p = geo.attributes.position;
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+      const bump = Math.max(0, Math.sin(Math.atan2(z, x) * 9) * Math.sin(Math.acos(y / 0.06) * 9)) ** 0.7;
+      const k = 1 + 0.1 * bump;
+      p.setXYZ(i, x * k, y * k * 1.12, z * k);
+    }
+    geo.computeVertexNormals();
+    g.add(new THREE.Mesh(geo, mat));
+    radius = 0.066;
+  } else if (type === 'blueberry') {
+    const s = new THREE.Mesh(new THREE.SphereGeometry(0.048, 24, 16), mat);
+    s.scale.set(1, 0.85, 1);
+    g.add(s);
+    radius = 0.048;
+  } else if (type === 'ice') {
+    const s = R(r, 0.12, 0.15);
+    g.add(new THREE.Mesh(roundedBox(s, s * R(r, 0.85, 1), s, s * 0.16), mat));
+    radius = s * 0.6;
+  } else if (type === 'lemon') {
+    // A thin wheel; the rind, pith and segments are painted in fruitMaterial.
+    g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.022, 48), mat));
+    radius = 0.1;
+  } else if (type === 'bubble') {
+    radius = R(r, 0.016, 0.032);
+    g.add(new THREE.Mesh(new THREE.SphereGeometry(radius, 12, 8), mat));
   }
-  g.rotation.set(R(r, 0, 6.3), R(r, 0, 6.3), R(r, 0, 6.3));
+  // Lemon wheels float flat on the surface; everything else lands any way up.
+  if (type === 'lemon') g.rotation.set(R(r, -0.15, 0.15), R(r, 0, 6.3), R(r, -0.15, 0.15));
+  else g.rotation.set(R(r, 0, 6.3), R(r, 0, 6.3), R(r, 0, 6.3));
   return { mesh: g, radius };
 }
 
@@ -301,13 +390,14 @@ function placeFruits(c, counts, seed, mats) {
     const fr = piece.radius;
     for (let tries = 0; tries < 600; tries++) {
       const yMin = c.yC + fr * 0.6;
-      const yMax = piece.type === 'cherry' ? c.yJ + 0.02 : c.yJ - fr * 0.3;
-      // Cherries float at the top; tapioca pearls sink and pile at the bottom.
-      const y = piece.type === 'cherry' ? yMax - r() * 0.06 : piece.type === 'pearl' ? yMin + r() ** 2 * 0.17 : yMin + r() * (yMax - yMin);
+      // Cherries, raspberries and lemon wheels sit on top, ice floats just under; tapioca pearls sink to the bottom.
+      const top = { cherry: c.yJ + 0.02, raspberry: c.yJ, lemon: c.yJ + 0.005, ice: c.yJ - fr * 0.2 }[piece.type];
+      const yMax = top ?? c.yJ - fr * 0.3;
+      const y = piece.type === 'lemon' ? yMax : top !== undefined ? yMax - r() * 0.06 : piece.type === 'pearl' ? yMin + r() ** 2 * 0.17 : yMin + r() * (yMax - yMin);
       const a = r() * Math.PI * 2;
       // Pearls crowd against the wall (that's what shows through a milky drink); everything else spreads out.
       const spread = piece.type === 'pearl' ? 0.94 + 0.06 * r() : Math.sqrt(r());
-      const d = spread * Math.max(0, c.rIn(y) - fr * 0.85 - 0.01);
+      const d = spread * Math.max(0, c.rIn(y) - fr * 1.15 - 0.01);
       const x = Math.cos(a) * d, z = Math.sin(a) * d;
       if (placed.every((p) => Math.hypot(p.x - x, p.y - y, p.z - z) > (p.fr + fr) * 0.72)) {
         placed.push({ ...piece, x, y, z, fr });
@@ -320,14 +410,14 @@ function placeFruits(c, counts, seed, mats) {
 
 // Everything that sits in the cup group and changes with the theme.
 export function buildCup(theme) {
-  const c = cupDims(theme.cup, theme.jelly.fill, theme.cream.height);
+  const c = cupDims(theme.cup, theme.jelly.fill, theme.cream?.height);
   const group = new THREE.Group();
   const body = createJelly(c);
   const field = jellyField(body);
 
   const glassNormals = painted('glass', { strokes: 160, angle: Math.PI / 2, jitter: 0.25, width: [6, 20], length: [80, 260], strength: 4, seed: 3 });
 
-  const cup = new THREE.Mesh(new THREE.LatheGeometry(cupProfile(c), 96), glassMaterial(c, glassNormals));
+  const cup = new THREE.Mesh(new THREE.LatheGeometry(c.shape === 'coupe' ? coupeProfile(c) : cupProfile(c), 96), glassMaterial(c, glassNormals));
   cup.renderOrder = 3;
   group.add(cup);
 
@@ -356,30 +446,32 @@ export function buildCup(theme) {
   jelly.renderOrder = 2;
   group.add(jelly);
 
-  // Cream: opaque, wavy top, soft glow from inside.
-  const creamGeo = new THREE.LatheGeometry(fillProfile(c, c.BASE + 0.001, c.yC, 0.008), 96);
-  {
-    const p = creamGeo.attributes.position;
-    for (let i = 0; i < p.count; i++) {
-      const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
-      const a = Math.atan2(z, x);
-      const k = Math.min(1, Math.max(0, (y - c.BASE) / (c.yC - c.BASE))) ** 3;
-      const w = 0.016 * Math.sin(a * 3 + 0.7) + 0.009 * Math.sin(a * 7 + 2.1);
-      p.setY(i, y + w * k);
+  // Cream: opaque, wavy top, soft glow from inside. Soda has none.
+  if (theme.cream) {
+    const creamGeo = new THREE.LatheGeometry(fillProfile(c, c.BASE + 0.001, c.yC, 0.008), 96);
+    {
+      const p = creamGeo.attributes.position;
+      for (let i = 0; i < p.count; i++) {
+        const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+        const a = Math.atan2(z, x);
+        const k = Math.min(1, Math.max(0, (y - c.BASE) / (c.yC - c.BASE))) ** 3;
+        const w = 0.016 * Math.sin(a * 3 + 0.7) + 0.009 * Math.sin(a * 7 + 2.1);
+        p.setY(i, y + w * k);
+      }
+      creamGeo.computeVertexNormals();
     }
-    creamGeo.computeVertexNormals();
+    const creamMat = new THREE.MeshPhysicalNodeMaterial({ roughness: 0.4, sheen: 0.51, sheenColor: '#ffffff' });
+    const grain = mx_fractal_noise_float(positionLocal.mul(14 * 1.35), 3).mul(0.39);
+    creamMat.colorNode = mix(col(theme.cream.shade), col(theme.cream.color), smoothstep(c.BASE, c.yC, positionLocal.y).add(grain.mul(0.4)).clamp(0, 1));
+    creamMat.emissiveNode = col(theme.cream.glow).mul(fresnel(1.2).mul(0.64 * 0.4));
+    creamMat.positionNode = warpNode(c, body, field, 0.6);
+    group.add(new THREE.Mesh(creamGeo, creamMat));
   }
-  const creamMat = new THREE.MeshPhysicalNodeMaterial({ roughness: 0.4, sheen: 0.51, sheenColor: '#ffffff' });
-  const grain = mx_fractal_noise_float(positionLocal.mul(14 * 1.35), 3).mul(0.39);
-  creamMat.colorNode = mix(col(theme.cream.shade), col(theme.cream.color), smoothstep(c.BASE, c.yC, positionLocal.y).add(grain.mul(0.4)).clamp(0, 1));
-  creamMat.emissiveNode = col(theme.cream.glow).mul(fresnel(1.2).mul(0.64 * 0.4));
-  creamMat.positionNode = warpNode(c, body, field, 0.6);
-  group.add(new THREE.Mesh(creamGeo, creamMat));
 
   const mats = {};
   const fruits = placeFruits(c, theme.fruits, theme.label.length * 7, mats).map((f) => {
     f.mesh.position.set(f.x, f.y, f.z);
-    f.mesh.userData.home = { x: f.x, y: f.y, z: f.z, q: f.mesh.quaternion.clone() };
+    f.mesh.userData.home = { x: f.x, y: f.y, z: f.z, q: f.mesh.quaternion.clone(), fr: f.fr };
     group.add(f.mesh);
     return f.mesh;
   });
@@ -406,7 +498,7 @@ export function buildCup(theme) {
   return { group, fruits, hit, dims: c, body, field };
 }
 
-const _u = [0, 0, 0], _w = [0, 0, 0], _axis = new THREE.Vector3(), _q = new THREE.Quaternion();
+const _u = [0, 0, 0], _w = [0, 0, 0], _axis = new THREE.Vector3(), _scale = new THREE.Vector3(), _q = new THREE.Quaternion();
 
 // Step the jelly with the cup's motion, upload its field, and carry each piece of fruit along: it moves with the
 // jelly at its centre and turns with the jelly's local rotation there, so every piece wobbles on its own.
@@ -428,6 +520,12 @@ export function updateJelly(cup, dt, s) {
       cup.body.spin(h.x, h.y, h.z, _w);
     }
     f.position.set(h.x + _u[0], h.y + _u[1], h.z + _u[2]);
+    if (h.fr) {
+      // Never through the glass: as far out as it was placed, or as the wall allows, whichever is further.
+      const r = Math.hypot(f.position.x, f.position.z);
+      const lim = Math.max(Math.hypot(h.x, h.z), cup.dims.rIn(f.position.y) - h.fr * 1.15 - 0.01);
+      if (r > lim) f.position.multiply(_scale.set(lim / r, 1, lim / r));
+    }
     const angle = Math.hypot(_w[0], _w[1], _w[2]);
     if (angle > 1e-6) f.quaternion.copy(_q.setFromAxisAngle(_axis.set(_w[0], _w[1], _w[2]).divideScalar(angle), angle)).multiply(h.q);
     else f.quaternion.copy(h.q);

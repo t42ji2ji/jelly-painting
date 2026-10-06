@@ -1,4 +1,4 @@
-// Preset models for the model mode, all procedural (no asset files): pudding, doughnut, macaron, teapot.
+// Preset models for the model mode, all procedural (no asset files): pudding, doughnut, macaron, teapot, jelly tower.
 
 import * as THREE from 'three/webgpu';
 import { mix, smoothstep, positionLocal, mx_noise_float, vec3, uniform } from 'three/tsl';
@@ -92,9 +92,65 @@ function teapot() {
   return new THREE.Mesh(geo, m);
 }
 
+// Jelly tower: three fluted tiers in three flavours on a white plate, a cherry on top.
+function jellyTower() {
+  const tiers = [
+    [0.34, 0.15, '#ff5c8a'],
+    [0.25, 0.13, '#ffa63d'],
+    [0.16, 0.12, '#8fdc4c'],
+  ];
+  const pts = [new THREE.Vector2(0.0001, 0)];
+  const bands = [];
+  let y = 0;
+  for (const [r, h] of tiers) {
+    pts.push(new THREE.Vector2(r, y), new THREE.Vector2(r * 0.93, y + h * 0.7));
+    // Rounded shoulder up and in to the next tier.
+    for (let i = 1; i <= 6; i++) {
+      const a = (i / 6) * (Math.PI / 2);
+      pts.push(new THREE.Vector2(r * 0.93 - r * 0.15 * (1 - Math.cos(a)), y + h * 0.7 + h * 0.3 * Math.sin(a)));
+    }
+    y += h;
+    bands.push(y);
+  }
+  pts.push(new THREE.Vector2(0.0001, y + 0.01));
+  const geo = new THREE.LatheGeometry(pts, 96);
+  // Mould flutes round the sides, fading out toward the axis.
+  const p = geo.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), z = p.getZ(i);
+    const k = 1 + 0.07 * Math.cos(Math.atan2(z, x) * 14) * Math.min(1, Math.hypot(x, z) / 0.1);
+    p.setX(i, x * k);
+    p.setZ(i, z * k);
+  }
+  geo.computeVertexNormals();
+  geo.translate(0, 0.022, 0);
+  const m = new THREE.MeshPhysicalNodeMaterial({ transmission: 0.75, thickness: 0.35, roughness: 0.08, ior: 1.35, sheen: 0.3, sheenColor: '#ffffff' });
+  const py = positionLocal.y.sub(0.022);
+  const flavour = mix(mix(col(tiers[0][2]), col(tiers[1][2]), smoothstep(bands[0] - 0.01, bands[0] + 0.01, py)), col(tiers[2][2]), smoothstep(bands[1] - 0.01, bands[1] + 0.01, py));
+  m.colorNode = flavour;
+  m.attenuationColorNode = flavour;
+  m.attenuationDistance = 0.4;
+  m.emissiveNode = flavour.mul(0.18);
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(geo, m));
+  const plate = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.44, 0.022, 64), new THREE.MeshPhysicalNodeMaterial({ color: '#fbf8f2', roughness: 0.2, clearcoat: 1 }));
+  plate.position.y = 0.011;
+  g.add(plate);
+  const cherry = new THREE.Mesh(new THREE.SphereGeometry(0.06, 32, 24), new THREE.MeshPhysicalNodeMaterial({ color: '#c00c22', roughness: 0.15, clearcoat: 1 }));
+  cherry.position.y = y + 0.022 + 0.06;
+  const stem = new THREE.Mesh(
+    new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(new THREE.Vector3(0, 0.05, 0), new THREE.Vector3(0.02, 0.13, 0), new THREE.Vector3(0.07, 0.18, 0)), 12, 0.006, 6),
+    new THREE.MeshStandardNodeMaterial({ color: '#4f9a22', roughness: 0.5 }),
+  );
+  cherry.add(stem);
+  g.add(cherry);
+  return g;
+}
+
 export const PRESETS = {
   pudding: { label: 'Pudding', build: pudding },
   doughnut: { label: 'Doughnut', build: doughnut },
   macaron: { label: 'Macaron', build: macaron },
   teapot: { label: 'Teapot', build: teapot },
+  jellyTower: { label: 'Jelly tower', build: jellyTower },
 };

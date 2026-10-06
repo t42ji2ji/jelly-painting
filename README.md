@@ -24,10 +24,10 @@ The code here is written from scratch. None of the original's code, models or te
 | `S` | shake it |
 | Arrow keys | nudge it |
 | Drag elsewhere | orbit the view; scroll or pinch to zoom |
-| Swatches | switch theme: Cherry, Kiwi, Boba |
-| **Model** tab | put any `.glb` on the painted stage (drag a file in, or pick a preset: pudding, doughnut, macaron, teapot) and wobble that instead |
+| Swatches | switch cup: Cherry, Kiwi, Boba, Coupe, Soda |
+| **Model** tab | put any `.glb` on the painted stage (drag a file in, or pick a preset: pudding, doughnut, macaron, teapot, jelly tower) and wobble that instead |
 
-Links: `?theme=cherry|kiwi|boba`, `?mode=model&palette=lilac|peach|butter|seaglass|night|…`
+Links: `?theme=cherry|kiwi|boba|coupe|soda`, `?mode=model&palette=lilac|peach|butter|seaglass|night|…`
 
 Needs a browser with WebGPU (a recent Chrome, Edge or Safari).
 
