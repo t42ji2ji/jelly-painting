@@ -93,8 +93,8 @@ function teapot() {
 }
 
 export const PRESETS = {
-  pudding: { label: '布丁', build: pudding },
-  doughnut: { label: '甜甜圈', build: doughnut },
-  macaron: { label: '馬卡龍', build: macaron },
-  teapot: { label: '茶壺', build: teapot },
+  pudding: { label: 'Pudding', build: pudding },
+  doughnut: { label: 'Doughnut', build: doughnut },
+  macaron: { label: 'Macaron', build: macaron },
+  teapot: { label: 'Teapot', build: teapot },
 };

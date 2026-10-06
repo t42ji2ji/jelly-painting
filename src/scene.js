@@ -255,10 +255,10 @@ function fruitMesh(type, r, mats) {
     g.add(new THREE.Mesh(crescent(0.15, 0.06, 0.055, 0.06), mat));
     radius = 0.1;
   } else if (type === 'pearl') {
-    const s = new THREE.Mesh(new THREE.SphereGeometry(0.052, 24, 16), mat);
+    const s = new THREE.Mesh(new THREE.SphereGeometry(0.066, 24, 16), mat);
     s.scale.set(1, 0.94, 1);
     g.add(s);
-    radius = 0.052;
+    radius = 0.066;
   } else if (type === 'shiratama') {
     const s = new THREE.Mesh(new THREE.SphereGeometry(0.085, 32, 24), mat);
     s.scale.set(1, 0.72, 1);
@@ -298,10 +298,10 @@ function placeFruits(c, counts, seed, mats) {
       const yMin = c.yC + fr * 0.6;
       const yMax = piece.type === 'cherry' ? c.yJ + 0.02 : c.yJ - fr * 0.3;
       // Cherries float at the top; tapioca pearls sink and pile at the bottom.
-      const y = piece.type === 'cherry' ? yMax - r() * 0.06 : piece.type === 'pearl' ? yMin + r() ** 3 * (yMax - yMin) * 0.6 : yMin + r() * (yMax - yMin);
+      const y = piece.type === 'cherry' ? yMax - r() * 0.06 : piece.type === 'pearl' ? yMin + r() ** 2 * 0.17 : yMin + r() * (yMax - yMin);
       const a = r() * Math.PI * 2;
       // Pearls crowd against the wall (that's what shows through a milky drink); everything else spreads out.
-      const spread = piece.type === 'pearl' ? 0.7 + 0.3 * r() : Math.sqrt(r());
+      const spread = piece.type === 'pearl' ? 0.94 + 0.06 * r() : Math.sqrt(r());
       const d = spread * Math.max(0, c.rIn(y) - fr * 0.85 - 0.01);
       const x = Math.cos(a) * d, z = Math.sin(a) * d;
       if (placed.every((p) => Math.hypot(p.x - x, p.y - y, p.z - z) > (p.fr + fr) * 0.72)) {
@@ -339,7 +339,9 @@ export function buildCup(theme) {
   jellyMat.positionNode = wobbleNode(c, c.yC, c.yJ, 1);
   if (theme.jelly.clearBottom) {
     // Milky above, clearer where the pearls have settled, so they show through the wall.
-    jellyMat.transmissionNode = mix(float(theme.jelly.clearBottom), float(theme.jelly.transmission), smoothstep(c.yC + 0.12, c.yC + 0.3, positionLocal.y));
+    const milky = smoothstep(c.yC + 0.12, c.yC + 0.3, positionLocal.y);
+    jellyMat.transmissionNode = mix(float(theme.jelly.clearBottom), float(theme.jelly.transmission), milky);
+    jellyMat.colorNode = mix(vec3(1, 0.97, 0.93), col(theme.jelly.color), milky);
   }
   jellyMat.emissiveNode = col(theme.jelly.glow).mul(fresnel(1).oneMinus().mul(0.32));
   jellyMat.normalNode = normalMap(texture(glassNormals, uv().mul(vec2(2, 1))), vec2(0.25));

@@ -15,7 +15,7 @@ export const postU = {
   bristleScale: uniform(3.2),
   ribContrast: uniform(0.16),
   speckle: uniform(6), // px of fixed scatter at the stroke start
-  grain: uniform(0.075),
+  grain: uniform(0.095),
   paper: uniform(new THREE.Color('#f7f5f0').convertLinearToSRGB()), // display-space, the frame is composited after tone mapping
   frameSize: uniform(0.62), // painting side as a fraction of the shorter screen side
   strength: uniform(1),

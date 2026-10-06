@@ -6,15 +6,15 @@ import { crayonCanvas, starShape } from './crayon.js';
 
 const star = (px) => crayonCanvas(px, starShape).toDataURL();
 
-// CSS cursor with a 2x image for sharp edges on retina; the plain url() line is the fallback.
+// One plain image per state, hotspot at its exact centre. (A 1x/2x image-set looked sharper, but Chrome then reads
+// the hotspot in the 2x image's pixels, so the click point sat ~9 px up-left of the star's centre.)
 function rule(size) {
   const h = size / 2;
-  const a = star(size), b = star(size * 2);
-  return `cursor: url(${a}) ${h} ${h}, auto; cursor: -webkit-image-set(url(${a}) 1x, url(${b}) 2x) ${h} ${h}, auto; cursor: image-set(url(${a}) 1x, url(${b}) 2x) ${h} ${h}, auto;`;
+  return `cursor: url(${star(size)}) ${h} ${h}, auto;`;
 }
 
 const style = document.createElement('style');
-const rest = rule(36), big = rule(48), small = rule(30);
+const rest = rule(32), big = rule(40), small = rule(28);
 style.textContent = `
 html, html * { ${rest} }
 html.grab, html.grab *, button:hover, label:hover, .swatch:hover { ${big} }

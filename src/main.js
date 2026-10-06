@@ -153,7 +153,7 @@ async function load(file) {
     await modelMode.load(file);
   } catch (e) {
     console.error(e);
-    alert('讀不了這個檔案（.gltf 需要把貼圖和 .bin 內嵌，或改用 .glb）。');
+    alert('Could not read this file. A .gltf needs its textures and .bin embedded; a .glb always works.');
   }
   sync();
 }

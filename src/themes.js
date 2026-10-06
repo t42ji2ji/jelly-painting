@@ -153,9 +153,9 @@ export const THEMES = {
     cameraAzimuth: 55,
     cup: { H: 0.8, Rb: 0.29, Rt: 0.39, flange: true },
     // Milk tea: milky, so a short attenuation distance and a pale body colour; brown-sugar syrup in place of cream.
-    jelly: { attenuation: '#e2b17c', glow: '#d79a5c', fill: 0.86, color: '#efcfa8', distance: 0.5, transmission: 0.45, clearBottom: 0.95 },
+    jelly: { attenuation: '#e2b17c', glow: '#d79a5c', fill: 0.86, color: '#efcfa8', distance: 0.5, transmission: 0.45, clearBottom: 1 },
     cream: { color: '#6a3214', shade: '#3a1608', glow: '#9a5420', height: 0.06 },
-    fruits: { pearl: 42 },
+    fruits: { pearl: 40 },
     straw: '#ff9fbd',
     study: { jelly: '#d7b28e', cream: '#5a2a12', fruit: ['#2a140c', '#3a2010'], glass: '#f5efe8' },
   },
