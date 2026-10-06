@@ -120,8 +120,8 @@ export async function createStage() {
     if (e.pointerId !== dragging) return;
     dragging = null;
     controls.enabled = true;
-    // Let go: it springs back to the middle, overshooting a little, and the jelly gets a second wobble.
-    sim.setTarget(0, 0);
+    // Let go: it eases back to the middle, and the jelly wobbles on the way.
+    sim.goHome();
   };
   canvas.addEventListener('pointerup', release);
   canvas.addEventListener('pointercancel', release);

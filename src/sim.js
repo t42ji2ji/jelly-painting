@@ -8,6 +8,8 @@ export const SIM = {
   maxSpeed: 12,
   maxAccel: 300,
   returnDamping: 0.55,
+  homeFrequency: 2.4, // Hz, the slower, heavier pull back to the middle once let go
+  homeDamping: 0.9,
   jellyFrequency: 0.9,
   jellyDamping: 1.3,
   viscosity: 0.12, // jelly sags against the cup's velocity, like syrup dragged along
@@ -51,9 +53,10 @@ export function createSim(p = SIM) {
     }
     [tx, tz] = clampLen(tx, tz, p.maxOffset);
 
-    const w = TAU * p.followFrequency;
-    let ax = w * w * (tx - c.x) - 2 * p.returnDamping * w * c.vx;
-    let az = w * w * (tz - c.z) - 2 * p.returnDamping * w * c.vz;
+    const w = TAU * (s.home ? p.homeFrequency : p.followFrequency);
+    const z = s.home ? p.homeDamping : p.returnDamping;
+    let ax = w * w * (tx - c.x) - 2 * z * w * c.vx;
+    let az = w * w * (tz - c.z) - 2 * z * w * c.vz;
     [ax, az] = clampLen(ax, az, p.maxAccel);
     c.vx += ax * dt;
     c.vz += az * dt;
@@ -105,6 +108,12 @@ export function createSim(p = SIM) {
     setTarget(x, z) {
       s.target.x = x;
       s.target.z = z;
+      s.home = false;
+    },
+    // Let go: drift back to the middle against some resistance.
+    goHome() {
+      s.target.x = s.target.z = 0;
+      s.home = true;
     },
     shake() {
       s.shakeStart = s.t;
