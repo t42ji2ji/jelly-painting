@@ -10,17 +10,17 @@ import {
 } from 'three/tsl';
 
 export const postU = {
-  spacing: uniform(9), // px between Sobel taps
-  strokeLength: uniform(15), // px
-  bristleScale: uniform(4.5),
-  ribContrast: uniform(0.03),
+  spacing: uniform(2.5), // px between Sobel taps
+  strokeLength: uniform(10), // px
+  bristleScale: uniform(3.4),
+  ribContrast: uniform(0.11),
   speckle: uniform(7), // px of fixed scatter at the stroke start
-  grain: uniform(0.145),
-  grainSize: uniform(2), // px per grain cell
+  grain: uniform(0.105),
+  grainSize: uniform(1), // px per grain cell
   grainColor: uniform(0), // how much of the grain differs per channel
   paper: uniform(new THREE.Color('#f7f5f0').convertLinearToSRGB()), // display-space, the frame is composited after tone mapping
   frameSize: uniform(0.62), // painting side as a fraction of the shorter screen side
-  strength: uniform(0.84),
+  strength: uniform(0.74),
   reveal: uniform(1), // 0 → 1: brush strokes lay the painting over the loading study
   excite: uniform(0), // 0 → 1 while the subject is being shaken: stars flare, extra glints appear
 };
